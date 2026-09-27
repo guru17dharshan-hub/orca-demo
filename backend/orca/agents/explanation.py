@@ -22,6 +22,7 @@ from ..llm.providers import LLMProvider
 from ..timeutil import IST, ensure_utc
 
 LEVEL_ENUM = ["LOW", "MODERATE", "HIGH", "SEVERE", "INSUFFICIENT_DATA", "NOT_APPLICABLE"]
+UNSAFE_LEVELS = ("HIGH", "SEVERE", "INSUFFICIENT_DATA")
 
 EXPLANATION_SCHEMA = {
     "type": "object",
@@ -40,7 +41,7 @@ SYSTEM_PROMPT = """You explain validated marine decision results for ORCA, a dec
 
 Rules:
 - Use only the values in the evidence packet. Never invent or estimate a number, place, time or source.
-- The risk level was computed by a deterministic engine. Copy it exactly into risk_level (NOT_APPLICABLE if the packet has no safety decision). Never soften, upgrade or contradict it.
+- The risk level was computed by a deterministic engine. Copy it exactly into risk_level: safety.risk_level, or conditions.risk_level when there is no safety section, or NOT_APPLICABLE if the packet has neither. Never soften, upgrade or contradict it.
 - Distinguish forecasts from observations, and say clearly when data is SIMULATED.
 - Mention the time when risk changes and the factor that causes it, if present.
 - If data is missing or uncertain, say so; never call conditions safe when the level is HIGH, SEVERE or INSUFFICIENT_DATA.
@@ -83,7 +84,13 @@ def _numbers_in(obj: Any) -> set[float]:
     return out
 
 
-def _number_allowed(n: float, allowed: set[float]) -> bool:
+def _number_allowed(text: str, allowed: set[float]) -> bool:
+    """A number is supported if it is a packet value, or a packet value rounded to the precision it is written at
+    (34.47 km/h may be written '34'; '35' is not supported by it)."""
+    n = float(text)
+    decimals = len(text.split(".")[1]) if "." in text else 0
+    if any(round(a, decimals) == n for a in allowed):
+        return True
     return any(abs(n - a) <= 0.05 + 0.005 * abs(a) or abs(abs(n) - abs(a)) <= 0.05 for a in allowed)
 
 
@@ -95,12 +102,12 @@ def validate_llm_output(data: dict, packet: dict, expected_level: str) -> str | 
     unknown = [e for e in data.get("evidence_ids", []) if e not in allowed_ids]
     if unknown:
         return f"unknown evidence ids: {unknown[:3]}"
-    allowed_numbers = _numbers_in(packet)
+    allowed_numbers = _numbers_in({k: v for k, v in packet.items() if k != "question"})  # the user's own numbers are not evidence
     text = " ".join([data.get("answer", ""), *data.get("key_factors", []), *data.get("actions", [])])
     for m in _NUM_RE.findall(normalize_digits(text)):
-        if not _number_allowed(float(m), allowed_numbers):
+        if not _number_allowed(m, allowed_numbers):
             return f"number {m} is not in the evidence packet"
-    if expected_level in ("HIGH", "SEVERE", "INSUFFICIENT_DATA"):
+    if expected_level in UNSAFE_LEVELS:
         lowered = text.lower()
         if re.search(r"\b(it is|it's|is) safe\b", lowered) or re.search(r"(?<!not )\bsafe to (go|venture|fish)\b", lowered):
             return "text claims safety contrary to the engine level"
@@ -150,7 +157,7 @@ def build_packet(question: str, language: str, ctx: dict[str, Any]) -> dict[str,
             if e is not None:
                 evidence.append({"id": e.id, "source": e.source, "data_type": e.data_type.value, "variable": e.variable,
                                  "value": e.value, "unit": e.unit, "valid_time_ist": _ist(e.valid_time) if e.valid_time else None})
-    for key in ("pfz", "route", "conditions", "alerts", "geofence", "hotspots", "productivity", "avoid", "regulations"):
+    for key in ("coverage", "pfz", "route", "conditions", "alerts", "geofence", "hotspots", "productivity", "avoid", "regulations"):
         if ctx.get(key) is not None:
             packet[key] = ctx[key]
     for extra in ctx.get("extra_evidence", []):
@@ -301,6 +308,8 @@ def template_explanation(language: str, ctx: dict[str, Any]) -> Explanation:
     if (ctx.get("data") or {}).get("simulated"):
         lines.append(t("simulated", lang))
     hist = ctx.get("historical")
+    if hist and "outside_replay" in (ctx.get("coverage") or {}).get("gaps", []):
+        lines.insert(0, t("coverage.outside", lang, event=hist["event"], place=place))
     if hist:
         lines.append(t("historical", lang, event=hist["event"], as_of=hist["as_of"]))
     note = None
@@ -312,13 +321,21 @@ def template_explanation(language: str, ctx: dict[str, Any]) -> Explanation:
 
 
 # ------------------------------------------------------------------------------ agent
+def expected_level(ctx: dict[str, Any]) -> str:
+    """The engine level the LLM was shown: the safety verdict, else the conditions trend (a conditions question
+    carries the window's risk level too), else nothing to copy."""
+    decision = ctx.get("decision")
+    if decision is not None:
+        return decision.risk_level.value
+    return (ctx.get("conditions") or {}).get("risk_level") or "NOT_APPLICABLE"
+
+
 async def explain(provider: LLMProvider, question: str, language: str, ctx: dict[str, Any]) -> Explanation:
     fallback = template_explanation(language, ctx)
     if not provider.available:
         return fallback
     packet = build_packet(question, language, ctx)
-    decision = ctx.get("decision")
-    expected = decision.risk_level.value if decision is not None else "NOT_APPLICABLE"
+    expected = expected_level(ctx)
     result = await provider.complete_json(SYSTEM_PROMPT, json.dumps(packet, ensure_ascii=False, default=str), EXPLANATION_SCHEMA)
     meta = {"provider": result.provider, "model": result.model, "served_by": result.served_by, "latency_ms": round(result.latency_ms, 1)}
     if result.data is None:
@@ -328,10 +345,20 @@ async def explain(provider: LLMProvider, question: str, language: str, ctx: dict
     if reason:
         fallback.note, fallback.llm_meta = f"LLM explanation discarded by verdict lock: {reason}", meta | {"discarded": True}
         return fallback
+    answer, actions = result.data["answer"], result.data["actions"]
+    if expected in UNSAFE_LEVELS:
+        # The 'safe' wording check above is English-only, so for unsafe verdicts the deterministic
+        # advice leads the answer in every language, whatever the LLM wrote after it.
+        advice = t(f"advice.{expected}", template_language(language))
+        answer = f"{advice} {answer}"
+        actions = [advice, *(a for a in actions if a != advice)]
+    hist = ctx.get("historical")
+    if hist and "outside_replay" in (ctx.get("coverage") or {}).get("gaps", []):
+        answer = f"{t('coverage.outside', template_language(language), event=hist['event'], place=ctx.get('place') or '—')} {answer}"
     return Explanation(
-        answer=result.data["answer"],
+        answer=answer,
         key_factors=result.data["key_factors"],
-        actions=result.data["actions"],
+        actions=actions,
         evidence_ids=result.data["evidence_ids"],
         source="llm",
         llm_meta=meta,

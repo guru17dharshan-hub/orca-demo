@@ -85,6 +85,17 @@ def test_official_advisory_severity_maps_to_level():
     assert h.dominant.evidence_id == "adv1"
 
 
+def test_official_advisory_with_unknown_severity_is_still_scored():
+    adv = Advisory(
+        id="adv2", source="IMD", data_type=DataType.OFFICIAL_ADVISORY, event="Fishermen warning", headline="Do not venture",
+        severity="Unknown", retrieved_at=NOW,
+    )
+    values = {"wave_height": obs("wave_height", 0.5), "wind_speed": obs("wind_speed", 10.0)}
+    h = assess_hour(tomorrow(6), values, [adv])
+    assert h.level == RiskLevel.MODERATE
+    assert h.dominant.evidence_id == "adv2"
+
+
 def _golden_decision(replay, start_hour=6, end_hour=12, now=NOW):
     q = PointQuery(15.2, 72.8, tomorrow(start_hour), tomorrow(end_hour))
     observations = asyncio.run(replay.observe(q))

@@ -208,6 +208,11 @@ def parse_pfz_geojson(fc: dict, retrieved_at: datetime) -> list[PFZZone]:
     return out
 
 
+# A zone further than this from the boat is not a fishing trip: it is on another coast or days away.
+# ORCA's working assumption for a long day trip (small mechanised boats); validate with fisheries departments.
+MAX_TRIP_KM = 150.0
+
+
 def rank_zones(
     lat: float,
     lon: float,
@@ -231,14 +236,17 @@ def rank_zones(
                 issues.append(f"{hit.distance_km:.1f} km from {hit.name}")
         if z.valid_from and z.valid_from > now:
             issues.append("not yet valid")
+        distance = round(min(z.distance_km(lat, lon), haversine_km(lat, lon, c_lat, c_lon)), 1)
+        if distance > MAX_TRIP_KM:
+            issues.append(f"{distance:.0f} km away — beyond a fishing trip's range ({MAX_TRIP_KM:.0f} km)")
         viable = gstatus.status not in ("inside_restricted", "beyond_boundary", "inside_protected") and not (
             z.valid_from and z.valid_from > now
-        )
+        ) and distance <= MAX_TRIP_KM
         b = bearing_deg(lat, lon, c_lat, c_lon)
         out.append(
             PFZCandidate(
                 zone=z,
-                distance_km=round(min(z.distance_km(lat, lon), haversine_km(lat, lon, c_lat, c_lon)), 1),
+                distance_km=distance,
                 bearing_deg=round(b),
                 compass=compass16(b),
                 viable=viable,

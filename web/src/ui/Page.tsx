@@ -1,12 +1,20 @@
 import type { ReactNode } from "react";
+import { useRoute } from "../router";
+import Icon from "./Icon";
 
 /** A chart plate: title cartouche, one-line purpose, and the datum line (sources, time basis). */
 export default function Page({ title, blurb, datum, actions, children, wide = false }: { title: string; blurb: string; datum?: ReactNode; actions?: ReactNode; children: ReactNode; wide?: boolean }) {
+  const route = useRoute();
   return (
     <main className={`page ${wide ? "page-wide" : ""}`} id="main">
       <header className="plate">
         <div className="plate-title">
-          <h1>{title}</h1>
+          <div className="plate-heading">
+            <span className="emblem" aria-hidden>
+              <Icon name={route} size={30} className="draw" />
+            </span>
+            <h1>{title}</h1>
+          </div>
           <p>{blurb}</p>
         </div>
         {actions && <div className="plate-actions">{actions}</div>}

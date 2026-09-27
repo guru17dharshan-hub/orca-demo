@@ -108,6 +108,105 @@ class AnthropicProvider(LLMProvider):
         return LLMResult(None, self.name, self.model, (time.perf_counter() - started) * 1000, error=error)
 
 
+class OpenAICompatibleProvider(LLMProvider):
+    """Any OpenAI-compatible chat API with strict JSON-schema output (Groq, Gemini's OpenAI endpoint)."""
+
+    name = "openai-compatible"
+    URL = ""
+    KEY_ENV = ""
+    MODEL_ENV = ""
+    DEFAULT_MODEL = ""
+
+    def __init__(self, model: str | None = None, timeout_s: float = 30.0) -> None:
+        import httpx
+
+        self.model = model or os.getenv(self.MODEL_ENV, self.DEFAULT_MODEL)
+        self._httpx = httpx
+        self._client = httpx.AsyncClient(timeout=timeout_s, headers={"Authorization": f"Bearer {os.environ[self.KEY_ENV]}"})
+
+    @property
+    def available(self) -> bool:
+        return True
+
+    async def complete_json(self, system: str, user: str, schema: dict[str, Any]) -> LLMResult:
+        started = time.perf_counter()
+        body = {
+            "model": self.model,
+            "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
+            "response_format": {"type": "json_schema", "json_schema": {"name": "orca_output", "schema": schema, "strict": True}},
+            "temperature": 0,
+        }
+        try:
+            response = await self._client.post(self.URL, json=body)
+        except self._httpx.HTTPError as exc:
+            return self._fail(started, f"connection error: {type(exc).__name__}")
+        latency = (time.perf_counter() - started) * 1000
+        if response.status_code != 200:
+            # Provider error text can name the account/organisation; keep it in the server log, not in user-facing notes.
+            log.warning("%s API error %s: %s", self.name, response.status_code, response.text[:500])
+            if response.status_code == 429:
+                retry = response.headers.get("retry-after")
+                return self._fail(started, "rate limited" + (f"; retry in {retry} s" if retry else ""), logged=True)
+            return self._fail(started, f"API error {response.status_code}", logged=True)
+        payload = response.json()
+        choice = payload["choices"][0]
+        served_by = payload.get("model")
+        if choice.get("finish_reason") == "length":
+            return LLMResult(None, self.name, self.model, latency, error="output truncated (max tokens)", served_by=served_by)
+        try:
+            data = json.loads(choice["message"]["content"] or "")
+        except json.JSONDecodeError as exc:
+            return LLMResult(None, self.name, self.model, latency, error=f"invalid JSON: {exc}", served_by=served_by)
+        return LLMResult(data, self.name, self.model, latency, served_by=served_by)
+
+    def _fail(self, started: float, error: str, logged: bool = False) -> LLMResult:
+        if not logged:
+            log.warning("%s provider failed: %s", self.name, error)
+        return LLMResult(None, self.name, self.model, (time.perf_counter() - started) * 1000, error=error)
+
+
+class GroqProvider(OpenAICompatibleProvider):
+    """Groq. Default model openai/gpt-oss-120b (override ORCA_GROQ_MODEL); key GROQ_API_KEY."""
+
+    name = "groq"
+    URL = "https://api.groq.com/openai/v1/chat/completions"
+    KEY_ENV, MODEL_ENV, DEFAULT_MODEL = "GROQ_API_KEY", "ORCA_GROQ_MODEL", "openai/gpt-oss-120b"
+
+
+class GeminiProvider(OpenAICompatibleProvider):
+    """Google Gemini via its OpenAI-compatible endpoint. Default gemini-2.5-flash (override ORCA_GEMINI_MODEL);
+    key GEMINI_API_KEY."""
+
+    name = "gemini"
+    URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+    KEY_ENV, MODEL_ENV, DEFAULT_MODEL = "GEMINI_API_KEY", "ORCA_GEMINI_MODEL", "gemini-2.5-flash"
+
+
+class FallbackProvider(LLMProvider):
+    """Tries each provider in order until one returns JSON (e.g. Groq rate-limited → Gemini)."""
+
+    def __init__(self, providers: list[LLMProvider]) -> None:
+        self.providers = providers
+        self.name = "+".join(p.name for p in providers)
+        self.model = " / ".join(p.model or "?" for p in providers)
+
+    @property
+    def available(self) -> bool:
+        return True
+
+    async def complete_json(self, system: str, user: str, schema: dict[str, Any]) -> LLMResult:
+        errors: list[str] = []
+        latency = 0.0
+        for p in self.providers:
+            result = await p.complete_json(system, user, schema)
+            latency += result.latency_ms
+            if result.data is not None:
+                result.latency_ms = latency
+                return result
+            errors.append(f"{p.name}: {result.error}")
+        return LLMResult(None, self.name, self.model, latency, error="; ".join(errors))
+
+
 @dataclass
 class ScriptedProvider(LLMProvider):
     """Deterministic provider for tests: returns queued responses in order."""
@@ -128,13 +227,22 @@ class ScriptedProvider(LLMProvider):
 
 
 def provider_from_env() -> LLMProvider:
+    """ORCA_LLM_PROVIDER: auto (every provider with a key, in the order groq → gemini → anthropic, each falling
+    back to the next) | groq | gemini | anthropic | none."""
     choice = os.getenv("ORCA_LLM_PROVIDER", "auto").lower()
     if choice == "none":
         return NullProvider()
-    has_credentials = bool(os.getenv("ANTHROPIC_API_KEY") or os.getenv("ANTHROPIC_AUTH_TOKEN"))
-    if choice == "anthropic" or (choice == "auto" and has_credentials):
-        try:
-            return AnthropicProvider()
-        except ImportError:
-            log.warning("anthropic package not installed; running without LLM (pip install 'orca[llm]')")
-    return NullProvider()
+    chain: list[LLMProvider] = []
+    for name, cls, has_key in (
+        ("groq", GroqProvider, bool(os.getenv("GROQ_API_KEY"))),
+        ("gemini", GeminiProvider, bool(os.getenv("GEMINI_API_KEY"))),
+        ("anthropic", AnthropicProvider, bool(os.getenv("ANTHROPIC_API_KEY") or os.getenv("ANTHROPIC_AUTH_TOKEN"))),
+    ):
+        if choice == name or (choice == "auto" and has_key):
+            try:
+                chain.append(cls())
+            except ImportError:
+                log.warning("anthropic package not installed; skipping it (pip install 'orca[llm]')")
+    if not chain:
+        return NullProvider()
+    return chain[0] if len(chain) == 1 else FallbackProvider(chain)

@@ -5,7 +5,12 @@ For any 'as of' moment ORCA may only use what had been published by then:
     time) at the as-of moment. Past hours come from the run that covered them.
   - OISST: the latest day released by then (one-day release lag).
   - Chlorophyll: the multi-day composite, once its last day has passed.
+  - ISRO INSAT-3DR/3D daily SST (MOSDAC L3B): a day's product once its 24 h window has closed plus a margin.
   - IMD CAP warnings: only those already sent.
+  - Tides: astronomical predictions, known in advance, so any hour may be used.
+
+Every grid answers only inside its own area: a point outside an event's archive gets no value (and the
+risk engine says it cannot confirm), never the nearest edge cell's value from somewhere else.
 """
 
 from __future__ import annotations
@@ -27,6 +32,17 @@ DATA_DIR = Path(__file__).resolve().parents[2] / "data" / "historical"
 PUBLISH_FALLBACK_H = 4.0  # if the upload time is unknown, assume a run is out 4 h after its start
 MAX_LEAD_H = 48
 SST_RELEASE_LAG = timedelta(days=1, hours=12)
+# MOSDAC L3B daily SST for day D spans D 00:15 -> D+1 00:15 UTC; its release time is not recorded, so ORCA
+# assumes it is on the portal 6 h after the window closes (conservative).
+ISRO_SST_RELEASE_LAG = timedelta(days=1, hours=6, minutes=15)
+TIDE_PORT_RADIUS_KM = 60.0  # tides are kept at the harbours; farther offshore ORCA does not interpolate them
+
+
+def inside(lats: np.ndarray, lons: np.ndarray, lat: float, lon: float) -> bool:
+    """Is the point within the grid, allowing half a cell beyond the outer centres?"""
+    dlat = abs(float(lats[1] - lats[0])) if len(lats) > 1 else 0.0
+    dlon = abs(float(lons[1] - lons[0])) if len(lons) > 1 else 0.0
+    return (min(lats) - dlat / 2 <= lat <= max(lats) + dlat / 2) and (min(lons) - dlon / 2 <= lon <= max(lons) + dlon / 2)
 
 
 @dataclass(frozen=True)
@@ -64,6 +80,9 @@ class GridStack:
     def has(self, name: str) -> bool:
         return name in self.npz.files
 
+    def covers(self, lat: float, lon: float) -> bool:
+        return inside(self.lat, self.lon, lat, lon)
+
     def run_for(self, as_of: datetime, valid: datetime) -> int | None:
         """Latest run published by as_of that starts at or before the valid time."""
         best = None
@@ -97,6 +116,8 @@ class GridStack:
         return self._nearest_valid
 
     def sample(self, name: str, lat: float, lon: float, valid: datetime, as_of: datetime, sea: bool = False) -> Sample | None:
+        if not self.covers(lat, lon):
+            return None
         run = self.run_for(as_of, valid)
         if run is None:
             return None
@@ -140,6 +161,10 @@ class EventArchive:
     def available(self) -> bool:
         return (self.dir / "gfs_wave.npz").exists() and (self.dir / "gfs_atmos.npz").exists()
 
+    def covers(self, lat: float, lon: float) -> bool:
+        """Is the point inside this event's archived area (the wave grid, the smallest one)?"""
+        return self.available and self.wave.covers(lat, lon)
+
     @cached_property
     def wave(self) -> GridStack:
         return GridStack(self.dir / "gfs_wave.npz")
@@ -151,7 +176,7 @@ class EventArchive:
     @cached_property
     def meta(self) -> dict:
         p = self.dir / "meta.json"
-        return json.loads(p.read_text()) if p.exists() else {}
+        return json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
 
     # ---- sea-surface temperature (NOAA OISST v2.1)
     @cached_property
@@ -177,7 +202,7 @@ class EventArchive:
 
     def sst_at(self, lat: float, lon: float, as_of: datetime) -> tuple[float | None, float | None, date] | None:
         s, k = self._sst, self.sst_day_index(as_of)
-        if s is None or k is None:
+        if s is None or k is None or not inside(s["lat"], s["lon"], lat, lon):
             return None
         i, j = self._nearest_sea(s["sst"][k], s["lat"], s["lon"], lat, lon)
         if i is None:
@@ -187,7 +212,7 @@ class EventArchive:
 
     def sst_series(self, lat: float, lon: float, as_of: datetime) -> list[tuple[date, float, float]]:
         s, k = self._sst, self.sst_day_index(as_of)
-        if s is None or k is None:
+        if s is None or k is None or not inside(s["lat"], s["lon"], lat, lon):
             return []
         i, j = self._nearest_sea(s["sst"][k], s["lat"], s["lon"], lat, lon)
         if i is None:
@@ -232,6 +257,8 @@ class EventArchive:
         if not self.chl_available(as_of) or is_land(lat, lon):  # inland lakes and reservoirs also show chlorophyll
             return None
         c = self._chl
+        if not inside(c["lat"], c["lon"], lat, lon):
+            return None
         i = int(np.clip(round((lat - c["lat"][0]) / (c["lat"][1] - c["lat"][0])), 0, len(c["lat"]) - 1))
         j = int(np.clip(round((lon - c["lon"][0]) / (c["lon"][1] - c["lon"][0])), 0, len(c["lon"]) - 1))
         win = c["chl"][max(0, i - radius_cells) : i + radius_cells + 1, max(0, j - radius_cells) : j + radius_cells + 1]
@@ -244,6 +271,76 @@ class EventArchive:
             return None
         c = self._chl
         return c["lat"], c["lon"], c["chl"], c["days"]
+
+    # ---- sea-surface temperature from ISRO (INSAT-3DR / INSAT-3D Imager, MOSDAC L3B daily)
+    @cached_property
+    def _isro_sst(self) -> dict | None:
+        p = self.dir / "isro_sst.npz"
+        if not p.exists():
+            return None
+        z = np.load(p)
+        return {
+            "lat": z["lat"].astype(float),
+            "lon": z["lon"].astype(float),
+            "days": [date.fromisoformat(str(d)) for d in z["days"]],
+            "sst": np.where(z["sst"] == -32768, np.nan, z["sst"] / 100.0),
+            "files": [str(f) for f in z["files"]],
+        }
+
+    def isro_sst_at(self, lat: float, lon: float, as_of: datetime) -> tuple[float, date, str] | None:
+        """Latest released ISRO daily SST at the point: (deg C, day, MOSDAC file name). Cloud gaps give None."""
+        s = self._isro_sst
+        if s is None or not inside(s["lat"], s["lon"], lat, lon):
+            return None
+        released = [k for k, d in enumerate(s["days"]) if datetime(d.year, d.month, d.day, tzinfo=UTC) + ISRO_SST_RELEASE_LAG <= as_of]
+        for k in reversed(released[-2:]):  # the latest product, else the day before if clouds hid the point
+            i, j = self._nearest_sea(s["sst"][k], s["lat"], s["lon"], lat, lon)
+            if i is not None:
+                return float(s["sst"][k, i, j]), s["days"][k], s["files"][k]
+        return None
+
+    # ---- tides (predicted sea level at the harbours)
+    @cached_property
+    def _tide(self) -> dict | None:
+        p = self.dir / "tide.npz"
+        if not p.exists():
+            return None
+        z = np.load(p)
+        return {
+            "names": [str(n) for n in z["names"]],
+            "lat": z["lat"].astype(float),
+            "lon": z["lon"].astype(float),
+            "times": [datetime.fromisoformat(str(t)) for t in z["times"]],
+            "level": np.where(z["level_mm"] == -32768, np.nan, z["level_mm"] / 1000.0),
+            "method": str(z["method"]) if "method" in z.files else "Open-Meteo sea_level_height_msl",
+        }
+
+    @property
+    def tide_method(self) -> str | None:
+        return self._tide["method"] if self._tide else None
+
+    def tide_at(self, lat: float, lon: float, t: datetime) -> tuple[float, str] | None:
+        """Predicted sea level (m, relative to mean sea level) at the nearest harbour within 60 km."""
+        from ..geo.geometry import haversine_km
+
+        s = self._tide
+        if s is None:
+            return None
+        dists = [haversine_km(lat, lon, a, b) for a, b in zip(s["lat"], s["lon"])]
+        k = int(np.argmin(dists))
+        if dists[k] > TIDE_PORT_RADIUS_KM:
+            return None
+        times, t = s["times"], ensure_utc(t)
+        if not times or t < times[0] or t > times[-1]:
+            return None
+        nxt = next((n for n, x in enumerate(times) if x > t), len(times) - 1)
+        i = max(0, min(len(times) - 2, nxt - 1))
+        span = (times[i + 1] - times[i]).total_seconds()
+        w = 0.0 if span <= 0 else min(1.0, (t - times[i]).total_seconds() / span)
+        a, b = s["level"][i, k], s["level"][i + 1, k]
+        if np.isnan(a) or np.isnan(b):
+            return None
+        return float((1 - w) * a + w * b), s["names"][k]
 
     @staticmethod
     def _nearest_sea(field: np.ndarray, lats: np.ndarray, lons: np.ndarray, lat: float, lon: float) -> tuple[int | None, int | None]:

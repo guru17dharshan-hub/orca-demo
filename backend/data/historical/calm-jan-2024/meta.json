@@ -51,6 +51,14 @@
   "cap": {
    "alerts": 18,
    "source": "s3://cap-sources/in-imd-en/ (WMO Alert Hub archive of IMD CAP feed)"
+  },
+  "tide": {
+   "harbours": 16,
+   "hours": 192,
+   "coverage_pct": 100.0,
+   "source": "Open-Meteo Marine API, hourly sea_level_height_msl (tide + mean sea level, model prediction)",
+   "method": "Open-Meteo sea_level_height_msl",
+   "retrieved_at": "2026-09-27T10:10:46.259223+00:00"
   }
  },
  "seconds": 4

@@ -56,6 +56,13 @@ export default function ChartMap({ center = [15.3, 73.3], zoom = 7, bounds, clas
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Follow a changed centre (e.g. a new location) unless explicit bounds control the view.
+  const centerKey = `${center[0].toFixed(3)},${center[1].toFixed(3)},${zoom}`;
+  useEffect(() => {
+    if (map && !bounds) map.setView(center, zoom);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, centerKey]);
+
   const boundsKey = bounds ? bounds.flat().map((v) => v.toFixed(3)).join(",") : "";
   useEffect(() => {
     if (map && bounds) map.fitBounds(bounds, { padding: [24, 24], maxZoom: 10 });

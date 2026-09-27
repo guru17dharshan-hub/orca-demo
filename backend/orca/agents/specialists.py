@@ -40,6 +40,20 @@ def _sources(state: MarineState) -> list[str]:
 
 
 # ---- data discovery ---------------------------------------------------------------
+async def catalog_agent(svc: Services, lat: float, lon: float, start: datetime, end: datetime) -> AgentResult:
+    """Which datasets can answer here and now (area, time span, published yet), incl. a live ISRO MOSDAC search."""
+    from ..catalog import discover
+
+    d = await discover(svc, lat, lon, start, end)
+    covering = [s.name for s in d.covering()]
+    summary = f"{len(covering)} of {len(d.sources)} sources cover {lat:.2f}N {lon:.2f}E"
+    if d.isro:
+        summary += "; ISRO MOSDAC: " + ", ".join(f"{i['granules']} {i['dataset']}" for i in d.isro)
+    if d.gaps:
+        summary += "; gaps: " + ", ".join(d.gaps)
+    return AgentResult(d, summary, [f"{s.agency}: {s.name} [{s.status}]" for s in d.sources])
+
+
 async def discover_marine_data(svc: Services, lat: float, lon: float, start: datetime, end: datetime) -> AgentResult:
     state, status = await svc.data.marine_state(lat, lon, floor_hour(start), end)
     summary = f"{len(state.observations)} observations for {len(state.times())} hours from {status.marine_source}"

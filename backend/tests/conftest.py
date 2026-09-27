@@ -1,3 +1,7 @@
+import os
+
+os.environ.setdefault("ORCA_MOSDAC_SEARCH", "0")  # no live ISRO portal calls in unit tests
+
 from datetime import datetime, timedelta
 from pathlib import Path
 

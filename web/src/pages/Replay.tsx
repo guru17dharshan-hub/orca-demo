@@ -107,7 +107,8 @@ function Matrix({ m, title }: { m: Backtest["matrix"]; title: string }) {
 }
 
 function Backtesting() {
-  const bt = useApi(() => api.backtest(), []);
+  const [attempt, setAttempt] = useState(0);
+  const bt = useApi(() => api.backtest(), [attempt]);
   const data = bt.data;
   const grid = useMemo(() => {
     if (!data) return null;
@@ -115,7 +116,17 @@ function Backtesting() {
     const by = new Map(data.rows.map((r) => [`${r.site}|${r.date}`, r]));
     return { dates, by };
   }, [data]);
-  if (bt.error) return <p className="muted">No backtest results yet. Run python scripts/historical/backtest.py.</p>;
+  // Only a 404 means there are no results; anything else (server restarting, offline) is worth a retry.
+  if (bt.error?.startsWith("no backtest results")) return <p className="muted">No backtest results yet. Run python scripts/historical/backtest.py.</p>;
+  if (bt.error)
+    return (
+      <p className="muted">
+        Could not load the backtest results ({bt.error}).{" "}
+        <button className="ghost" onClick={() => setAttempt((n) => n + 1)}>
+          Retry
+        </button>
+      </p>
+    );
   if (!data || !grid) return <Loading what="backtest results" />;
   const s = data.scores,
     p = data.persistence_scores;

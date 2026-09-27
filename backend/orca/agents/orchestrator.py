@@ -18,16 +18,17 @@ from pydantic import BaseModel, Field
 
 from ..data_service import DataStatus
 from ..i18n.detect import LANGUAGE_NAMES
-from ..i18n.messages import t, template_language
+from ..i18n.messages import direction8, t, template_language
 from ..models import Evidence
 from ..risk.engine import RiskDecision
 from ..services import Services
-from ..timeutil import ensure_utc
+from ..timeutil import IST, ensure_utc
 from ..trace import Trace, TraceRecorder
 from . import specialists as sp
 from .context import Place, SelectedZone
 from .explanation import explain
 from .intent import llm_parse, parse_message
+from . import llm_planner as lp
 from .planner import Plan, build_plan
 
 LEVEL_COLORS = {"LOW": "low", "MODERATE": "moderate", "HIGH": "high", "SEVERE": "severe", "INSUFFICIENT_DATA": "unknown"}
@@ -128,7 +129,11 @@ class Orchestrator:
         # 1–4 language, intent, entities
         recorder.start("intent", "intent-agent", "tool-agent", "detect language, intents and entities")
         parsed = parse_message(req.message)
-        if not parsed.intents and req.message.strip():
+        # Questions the fixed planner cannot express (several harbours, "which is safest") are planned by the LLM,
+        # validated, and executed with the same deterministic engines — no separate intent call needed.
+        specific = set(parsed.intents) & {"route", "pfz", "hotspots", "productivity", "avoid", "alerts"}
+        planned = len(lp.ports_in_text(req.message)) >= 2 or (lp.wants_llm_plan(req.message) and not specific)
+        if not parsed.intents and req.message.strip() and not planned:
             parsed = await llm_parse(parsed, svc.llm)
         language = req.language or parsed.language
         recorder.finish("intent", True, f"{language}; intents={parsed.intents} via {parsed.source}; "
@@ -136,6 +141,9 @@ class Orchestrator:
         recorder.trace.language, recorder.trace.intents, recorder.trace.intent_source = language, parsed.intents, parsed.source
 
         device = Place(lat=req.lat, lon=req.lon, label=req.location_label or "your location", source="device") if req.lat is not None and req.lon is not None else None
+
+        if planned:
+            return await self._handle_planned(req, parsed, language, state, recorder, now)
 
         # 5 plan
         recorder.start("plan", "planner", "deterministic-engine", "decompose request into agent tasks")
@@ -206,6 +214,80 @@ class Orchestrator:
             suggestions=_suggestions(plan),
         )
 
+    async def _handle_planned(self, req: ChatRequest, parsed, language: str, state, recorder: TraceRecorder, now: datetime) -> ChatResponse:
+        svc = self.svc
+        lang = template_language(language)
+        planner_kind = "llm-agent" if svc.llm.available else "deterministic-engine"
+        recorder.start("plan", "llm-planner" if svc.llm.available else "planner", planner_kind, "plan tool calls for a multi-harbour question")
+        plan = await lp.plan_request(req.message, parsed.time, svc.llm)
+        recorder.finish("plan", True, f"{plan.source} plan: " + "; ".join(s.describe() for s in plan.steps) + (f" | {'; '.join(plan.notes)}" if plan.notes else ""))
+        recorder.trace.plan = [{"id": f"s{i}", "agent": s.tool, "kind": "deterministic-engine", "action": s.describe(), "depends_on": ["plan"]}
+                               for i, s in enumerate(plan.steps)]
+        for i, s in enumerate(plan.steps):
+            recorder.start(f"s{i}", s.tool, "deterministic-engine", s.describe(), ["plan"])
+        results = await lp.execute(svc, plan, now)
+        for i, r in enumerate(results):
+            summary = r.get("level") or (f"{len(r['warnings'])} warnings" if "warnings" in r else (r.get("zone") or {}).get("name", "no zone"))
+            recorder.finish(f"s{i}", True, f"{r['harbour']}: {summary}")
+
+        best = lp.best_harbour(results)
+        lines: list[str] = []
+        safety = [r for r in results if r["tool"] == "harbour_safety"]
+        if safety:
+            if best:
+                gw = best["go_window"]
+                when = t("compare.when", lang, start=_ist_hm(gw["start"]), end=_ist_hm(gw["end"])) if gw else ""
+                lines.append(t("compare.best", lang, place=best["harbour"], level=t(f"level.{best['level']}", lang), when=when))
+            else:
+                lines.append(t("compare.none", lang))
+            for r in sorted(safety, key=lambda r: lp.ORDER.get(r["level"], 3)):
+                f = r["factor"]
+                reason = "" if not f else " — " + t(f"factor.{f['variable']}", lang, value=f"{f['value']:.1f}" if isinstance(f["value"], (int, float)) else f["value"])
+                lines.append(t("compare.row", lang, place=r["harbour"], level=t(f"level.{r['level']}", lang), reason=reason))
+        for r in results:
+            if r["tool"] == "nearest_zone":
+                z = r["zone"]
+                lines.append(t("compare.zone", lang, place=r["harbour"], name=z["name"], distance=f"{z['distance_km']:.0f}",
+                               direction=t(f"dir.{direction8(z['compass'])}", lang)) if z else t("compare.nozone", lang, place=r["harbour"]))
+            elif r["tool"] == "warnings":
+                n = len(r["warnings"])
+                lines.append(t("compare.warn", lang, place=r["harbour"], count=n) if n else t("compare.nowarn", lang, place=r["harbour"]))
+        if svc.replay is not None:
+            lines.append(t("historical", lang, event=svc.replay.event.title, as_of=sp.ist_label(svc.clock())))
+
+        evidence: dict[str, Evidence] = {}
+        status = None
+        for r in results:
+            st = r.pop("_state", None)
+            status = r.pop("_status", None) or status
+            if st is not None:
+                index = st.evidence_index()
+                for eid in r.get("evidence_ids", []):
+                    if eid in index:
+                        evidence[eid] = index[eid]
+        features = [_feature(_point(r["lat"], r["lon"]), kind="harbour", label=r["harbour"], level=r.get("level")) for r in results if r["tool"] == "harbour_safety"]
+        rows = [{k: v for k, v in r.items() if not k.startswith("_")} for r in results]
+
+        if best:
+            state.location = Place(lat=best["lat"], lon=best["lon"], label=f"off {best['harbour']}", source="port")
+        state.language, state.last_intents = language, ["compare"]
+        svc.contexts.save(state, now)
+        recorder.trace.final_decision = best["level"] if best else None
+        trace = recorder.close()
+        svc.traces.add(trace)
+        first = results[0]["window"] if results else None
+        return ChatResponse(
+            request_id=trace.request_id, session_id=state.session_id, language=language,
+            language_name=LANGUAGE_NAMES.get(language, language), answer=" ".join(lines), answer_source="template",
+            answer_note=f"planned by {'the LLM' if plan.source == 'llm' else 'rules'}; every verdict from the risk rules",
+            key_factors=[], actions=[], intents=["compare"],
+            place=state.location if best else None, window=first, map={"type": "FeatureCollection", "features": features},
+            cards={"compare": {"planner": plan.source, "goal": plan.goal, "notes": plan.notes, "best": best["harbour_id"] if best else None, "rows": rows}},
+            evidence=list(evidence.values())[:40], data_status=status, simulated=bool(status and status.marine_source == "replay"),
+            clock_offset_hours=svc.clock.offset.total_seconds() / 3600, disclaimer=t("disclaimer", lang), trace=trace,
+            suggestions=["Is it safe there tomorrow at 6 AM?", "Where is the nearest fishing zone from there?"],
+        )
+
     def _assemble(self, plan: Plan, results: dict[str, sp.AgentResult], language: str):
         ctx: dict[str, Any] = {"intents": plan.intents, "needs_location": plan.needs_location}
         cards: dict[str, Any] = {}
@@ -220,6 +302,11 @@ class Orchestrator:
             ctx["place"] = plan.place.label
             ctx["window"] = sp.window_label(*plan.window)
             features.append(_feature(_point(plan.place.lat, plan.place.lon), kind="location", label=plan.place.label, source=plan.place.source))
+
+        if "catalog" in results:
+            d = results["catalog"].value
+            cards["discovery"] = d.model_dump(mode="json")
+            ctx["coverage"] = {"gaps": d.gaps, "sources": [f"{x.agency}: {x.name} [{x.status}]" for x in d.sources]}
 
         state = None
         if "data" in results:
@@ -348,6 +435,10 @@ class Orchestrator:
                 features.append(_feature(geom, kind="geofence", geofence_kind=f.kind, id=f.id, label=f.name,
                                          accuracy=f.accuracy, rule=f.rule))
         return ctx, cards, features, list(evidence.values())[:60], status, decision
+
+
+def _ist_hm(dt: datetime) -> str:
+    return ensure_utc(dt).astimezone(IST).strftime("%H:%M")
 
 
 def _iso(dt: datetime | None) -> str | None:

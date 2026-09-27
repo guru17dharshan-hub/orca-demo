@@ -104,7 +104,7 @@ def test_open_meteo_failure_marks_health_unavailable():
 
 
 def test_parse_real_imd_cap_alert():
-    xml = (FIXTURES / "imd_cap_2026-09-23.xml").read_text()
+    xml = (FIXTURES / "imd_cap_2026-09-23.xml").read_text(encoding="utf-8")
     adv = parse_cap(xml, "https://example/cap.xml", NOW)
     assert adv is not None
     assert adv.data_type == DataType.OFFICIAL_ADVISORY
@@ -122,13 +122,13 @@ def test_parse_real_imd_cap_alert():
 
 
 def test_parse_rss_links():
-    links = parse_rss_links((FIXTURES / "imd_rss_2026-09-23.xml").read_text())
+    links = parse_rss_links((FIXTURES / "imd_rss_2026-09-23.xml").read_text(encoding="utf-8"))
     assert len(links) == 3 and all(link.endswith(".xml") for link in links)
 
 
 def test_imd_adapter_end_to_end_with_mock_transport():
-    rss = (FIXTURES / "imd_rss_2026-09-23.xml").read_text()
-    cap = (FIXTURES / "imd_cap_2026-09-23.xml").read_text()
+    rss = (FIXTURES / "imd_rss_2026-09-23.xml").read_text(encoding="utf-8")
+    cap = (FIXTURES / "imd_cap_2026-09-23.xml").read_text(encoding="utf-8")
 
     def handler(request):
         return httpx.Response(200, text=rss if request.url.path.endswith("rss.xml") else cap)

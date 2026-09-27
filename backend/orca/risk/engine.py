@@ -17,6 +17,7 @@ from ..timeutil import ensure_utc, hours_between
 from .rules import (
     ADVISORY_REFERENCE,
     ADVISORY_SEVERITY,
+    ADVISORY_SEVERITY_DEFAULT,
     LEAD_TIME_CONFIDENCE_HOURS,
     RANK,
     RULESET_VERSION,
@@ -119,9 +120,9 @@ def assess_hour(time: datetime, values: dict[str, MarineObservation], advisories
         )
 
     for adv in advisories:
-        level = ADVISORY_SEVERITY.get(adv.severity)
-        if level is None or adv.data_type == DataType.DERIVED:  # model-derived watches are shown, not scored
+        if adv.data_type == DataType.DERIVED:  # model-derived watches are shown, not scored
             continue
+        level = ADVISORY_SEVERITY.get(adv.severity, ADVISORY_SEVERITY_DEFAULT)
         factors.append(
             FactorAssessment(
                 variable="advisory",

@@ -238,7 +238,7 @@ def main() -> None:
     site_list = sites()
     days = [SEASON[0] + timedelta(days=i) for i in range((SEASON[1] - SEASON[0]).days + 1)]
     if "--eval" in sys.argv and cache.exists():
-        raw = json.loads(cache.read_text())
+        raw = json.loads(cache.read_text(encoding="utf-8"))
     else:
         t0 = time.time()
         print(f"GFS forecasts for {len(days)} evenings × {len(site_list)} harbours …", flush=True)
@@ -248,7 +248,7 @@ def main() -> None:
         print(f"ERA5 truth for {len(hours)} hours …", flush=True)
         truth = fetch_truth(hours, site_list)
         raw = {"forecasts": forecasts, "truth": truth, "download_seconds": round(time.time() - t0)}
-        cache.write_text(json.dumps(raw))
+        cache.write_text(json.dumps(raw), encoding="utf-8")
     result = evaluate(raw["forecasts"], raw["truth"], site_list)
     result.update({
         "generated_at": datetime.now(UTC).isoformat(),
@@ -271,7 +271,7 @@ def main() -> None:
             "gs://gcp-public-data-arco-era5 (ECMWF ERA5, Copernicus Climate Change Service)",
         ],
     })
-    (OUT / "results.json").write_text(json.dumps(result, indent=1))
+    (OUT / "results.json").write_text(json.dumps(result, indent=1), encoding="utf-8")
     s, p = result["scores"], result["persistence_scores"]
     print(f"site-days {s['site_days']}: dangerous {s['dangerous_observed']}, POD {s['pod']} (persistence {p['pod']}), "
           f"FAR {s['far']} (persistence {p['far']}), missed {s['misses']}, exact {s['exact_level_accuracy']}, "

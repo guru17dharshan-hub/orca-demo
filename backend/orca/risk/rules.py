@@ -23,7 +23,7 @@ class RiskLevel(str, Enum):
 
 RANK = {RiskLevel.LOW: 0, RiskLevel.MODERATE: 1, RiskLevel.HIGH: 2, RiskLevel.SEVERE: 3}
 
-RULESET_VERSION = "orca-rules-0.2.0"
+RULESET_VERSION = "orca-rules-0.2.1"
 
 
 @dataclass(frozen=True)
@@ -106,7 +106,9 @@ ADVISORY_SEVERITY = {
     "Moderate": RiskLevel.MODERATE,
     "Minor": RiskLevel.LOW,
 }
-ADVISORY_REFERENCE = "OASIS CAP 1.2 <severity> as issued by the warning agency; point-in-polygon on the alert area"
+# An official warning with 'Unknown' (or unrecognised) severity still covers the point: never drop it silently.
+ADVISORY_SEVERITY_DEFAULT = RiskLevel.MODERATE
+ADVISORY_REFERENCE ="OASIS CAP 1.2 <severity> as issued by the warning agency; point-in-polygon on the alert area"
 
 # IMD draws 'along and off the coast' warning polygons coarsely: during Cyclone Tauktae the
 # Maharashtra–Goa fishermen warning ended about 40 km off the Goa coast, leaving near-shore boats
@@ -156,7 +158,7 @@ def rules_table() -> dict:
             },
             {
                 "variable": "advisory",
-                "mapping": {k: v.value for k, v in ADVISORY_SEVERITY.items()},
+                "mapping": {k: v.value for k, v in ADVISORY_SEVERITY.items()} | {"Unknown/other": ADVISORY_SEVERITY_DEFAULT.value},
                 "reference": ADVISORY_REFERENCE,
                 "coastal_buffer_km": COASTAL_WARNING_BUFFER_KM,
                 "note": "Official warnings that name a coast also cover points within this distance of their polygon "

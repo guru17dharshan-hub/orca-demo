@@ -1,0 +1,491 @@
+/* Fishermen's page: phone first, one column, big type and big targets (min 56 px), colour + shape + word for
+   every verdict so it reads at a glance, in any language, by anyone. */
+.fm {
+  max-width: 760px;
+  margin: 0 auto;
+  display: grid;
+  gap: 16px;
+  padding-bottom: 32px;
+}
+.fm-head {
+  display: grid;
+  gap: 14px;
+  padding: 18px 0 4px;
+  animation: rise 0.5s var(--glide) both;
+}
+.fm-title {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.fm-title h1 {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: clamp(2rem, 7vw, 2.8rem);
+  line-height: 1;
+  text-transform: uppercase;
+}
+.fm[lang]:not([lang="en"]) .fm-title h1 {
+  font-family: var(--body);
+  text-transform: none;
+  font-size: clamp(1.7rem, 6vw, 2.3rem);
+}
+.fm-title p {
+  color: var(--ink-2);
+  font-size: 1.05rem;
+  margin-top: 4px;
+}
+.fm-langs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+button.fm-lang {
+  min-height: 48px;
+  padding: 8px 16px;
+  font-size: 1.05rem;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1.5px solid var(--rule);
+  border-radius: 999px;
+}
+button.fm-lang.on {
+  background: var(--magenta);
+  border-color: var(--magenta);
+  color: #fff;
+}
+.fm-replay {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  color: var(--magenta);
+  padding: 8px 12px;
+  border: 1px dashed var(--magenta);
+  border-radius: 10px;
+}
+.fm-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+.fm-harbour {
+  display: grid;
+  gap: 6px;
+  font-weight: 700;
+}
+.fm-harbour select {
+  min-height: 56px;
+  font-size: 1.1rem;
+  padding: 0 14px;
+}
+.fm-when {
+  display: flex;
+  gap: 6px;
+  background: var(--surface-2);
+  padding: 5px;
+  border-radius: 14px;
+}
+.fm-when button {
+  min-height: 48px;
+  font-size: 1rem;
+  background: transparent;
+  color: var(--ink-2);
+  border-radius: 10px;
+}
+.fm-when button.on {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+}
+
+/* ---- the verdict */
+.fm-verdict {
+  --v: var(--lv-unknown);
+  --v-soft: var(--lv-unknown-soft);
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px 20px;
+  align-items: center;
+  padding: 22px;
+  border-radius: 24px;
+  background: var(--v-soft);
+  border: 3px solid var(--v);
+  overflow: hidden;
+  isolation: isolate;
+  animation: fm-pop 0.6s var(--spring) both;
+}
+.fm-verdict.v-go {
+  --v: var(--lv-low);
+  --v-soft: var(--lv-low-soft);
+}
+.fm-verdict.v-care {
+  --v: var(--lv-moderate);
+  --v-soft: var(--lv-moderate-soft);
+}
+.fm-verdict.v-no {
+  --v: var(--lv-severe);
+  --v-soft: var(--lv-severe-soft);
+}
+.fm-verdict::before {
+  content: "";
+  position: absolute;
+  inset: auto -10% -30% -10%;
+  height: 70%;
+  z-index: -1;
+  background: var(--v);
+  opacity: 0.12;
+  -webkit-mask: var(--tide-wave) 0 0 / 80px 20px repeat-x, linear-gradient(#000, #000) 0 18px / 100% 100% no-repeat;
+  mask: var(--tide-wave) 0 0 / 80px 20px repeat-x, linear-gradient(#000, #000) 0 18px / 100% 100% no-repeat;
+  animation: fm-tide 6s linear infinite;
+}
+.fm-verdict.v-wait {
+  grid-template-columns: 1fr;
+  min-height: 180px;
+  place-items: center;
+}
+.fm-wait {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 1.1rem;
+}
+.fm-verdict-text h2 {
+  font-family: var(--display);
+  font-size: clamp(2.6rem, 11vw, 4.2rem);
+  line-height: 0.95;
+  letter-spacing: 0.02em;
+  color: var(--v);
+}
+.fm[lang]:not([lang="en"]) .fm-verdict-text h2 {
+  font-family: var(--body);
+  font-weight: 800;
+  text-transform: none;
+  font-size: clamp(2rem, 8.5vw, 3.2rem);
+  letter-spacing: 0;
+}
+.fm-verdict-text p {
+  margin-top: 8px;
+  font-size: 1.2rem;
+  line-height: 1.45;
+  font-weight: 700;
+  color: var(--ink);
+}
+button.fm-listen {
+  grid-column: 1 / -1;
+  min-height: 60px;
+  font-size: 1.2rem;
+  border-radius: 16px;
+  background: var(--v);
+  color: #fff;
+  --tide: var(--ink);
+}
+.fm-listen[aria-pressed="true"] {
+  animation: voice-glow 1.6s ease-out infinite;
+}
+
+/* the glyph: boat on the sea; the mark draws in */
+.fm-glyph {
+  width: clamp(96px, 26vw, 132px);
+  height: auto;
+}
+.fm-glyph .g-disc {
+  fill: var(--surface);
+  stroke: var(--v);
+  stroke-width: 3;
+}
+.fm-glyph .g-boat path {
+  fill: var(--ink);
+}
+.fm-glyph .g-sail {
+  fill: var(--v) !important;
+}
+.fm-glyph .g-boat {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: fm-rock 3.2s ease-in-out infinite;
+}
+.fm-glyph.g-no .g-boat {
+  animation-duration: 1.4s;
+}
+.fm-glyph .g-sea {
+  fill: none;
+  stroke: var(--sea-deep);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+.fm-glyph .g-mark {
+  fill: none;
+  stroke: var(--v);
+  stroke-width: 6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 60;
+  stroke-dashoffset: 60;
+  animation: fm-draw 0.7s var(--glide) 0.35s forwards;
+}
+
+/* ---- detail cards */
+.fm-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.fm-card {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 18px;
+  animation: rise 0.5s var(--glide) both;
+}
+.fm-card:nth-child(2) {
+  animation-delay: 60ms;
+}
+.fm-card:nth-child(3) {
+  animation-delay: 120ms;
+}
+.fm-card:nth-child(4) {
+  animation-delay: 180ms;
+}
+.fm-card h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1rem;
+  color: var(--ink-2);
+}
+.fm-card h3 .ic {
+  color: var(--magenta);
+}
+.fm-big {
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1.1;
+}
+.fm-mid {
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+.fm-note {
+  font-size: 0.9rem;
+  color: var(--ink-2);
+}
+.fm-back {
+  font-size: 1.05rem;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--lv-high-soft);
+  color: var(--ink);
+}
+.fm-alert {
+  border-color: var(--lv-high);
+  box-shadow: inset 5px 0 0 var(--lv-high);
+}
+.fm-warn-list {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--ink-2);
+}
+.fm-sea {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.fm-sea > div {
+  display: grid;
+  gap: 2px;
+  padding: 10px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  border-left: 5px solid currentColor;
+}
+.fm-sea span {
+  font-size: 0.85rem;
+  color: var(--ink-2);
+}
+.fm-sea b {
+  font-size: 1.25rem;
+  color: var(--ink);
+}
+.fm-sea small {
+  color: var(--ink-2);
+}
+.fm-zone {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.fm-compass {
+  width: 76px;
+  height: 76px;
+  flex-shrink: 0;
+}
+.fm-compass circle {
+  fill: var(--surface-2);
+  stroke: var(--rule);
+  stroke-width: 1.5;
+}
+.fm-compass text {
+  font: 700 9px var(--mono);
+  fill: var(--ink-2);
+  text-anchor: middle;
+}
+.fm-needle {
+  transition: transform 1.2s var(--spring);
+}
+.fm-needle path {
+  fill: var(--magenta);
+}
+
+/* ---- actions + emergency */
+.fm-actions {
+  display: grid;
+}
+button.fm-ask {
+  min-height: 64px;
+  font-size: 1.2rem;
+  border-radius: 18px;
+}
+.fm-sos {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 2px solid var(--lv-severe);
+  background: var(--lv-severe-soft);
+}
+.fm-sos h3 {
+  color: var(--lv-severe);
+  font-size: 1.05rem;
+}
+.fm-sos > div {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.fm-call {
+  display: grid;
+  place-items: center;
+  gap: 2px;
+  min-height: 72px;
+  border-radius: 14px;
+  background: var(--lv-severe);
+  color: #fff;
+  text-decoration: none;
+  font-weight: 700;
+  text-align: center;
+  transition: transform 0.2s var(--spring);
+}
+.fm-call b {
+  font-family: var(--mono);
+  font-size: 1.6rem;
+  letter-spacing: 0.05em;
+}
+.fm-call:active {
+  transform: scale(0.96);
+}
+.fm-disclaimer {
+  text-align: center;
+  color: var(--ink-2);
+  font-size: 0.9rem;
+}
+
+/* ---- nav entry: the fishermen's page is the one to find */
+.nav-link.nav-fisher {
+  color: var(--bar-ink);
+}
+.nav-link.nav-fisher .ic {
+  color: var(--magenta);
+}
+
+@keyframes fm-pop {
+  from {
+    transform: scale(0.94);
+    opacity: 0;
+  }
+}
+@keyframes fm-tide {
+  to {
+    -webkit-mask-position: 80px 0, 0 18px;
+    mask-position: 80px 0, 0 18px;
+  }
+}
+@keyframes fm-rock {
+  50% {
+    transform: rotate(-4deg) translateY(-1px);
+  }
+}
+@keyframes fm-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@media (max-width: 560px) {
+  .fm-controls {
+    grid-template-columns: 1fr;
+  }
+  .fm-when button {
+    flex: 1;
+  }
+  .fm-verdict {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    text-align: center;
+  }
+  .fm-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---- home: the fishermen's tile is the featured one (two columns), so 11 tiles fill the grid evenly */
+.station.st-fishermen {
+  grid-column: span 2;
+  border-color: var(--magenta);
+  background: linear-gradient(135deg, var(--magenta-soft), var(--surface) 70%);
+}
+@media (min-width: 1181px) {
+  .page-home .stations {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+.fm-verdict-text p.fm-why {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 1.05rem;
+  background: var(--surface);
+  border: 1.5px solid var(--v);
+}
+
+/* ---- alerts on my phone */
+.fm-sub-form {
+  display: grid;
+  gap: 10px;
+}
+.fm-sub-form label {
+  display: grid;
+  gap: 6px;
+  font-weight: 700;
+}
+.fm-sub-form input {
+  min-height: 56px;
+  font-size: 1.15rem;
+  padding: 0 14px;
+  letter-spacing: 0.03em;
+}
+.fm-ok {
+  color: var(--lv-low);
+}
+.fm-bad {
+  color: var(--lv-severe);
+}
+.fm-offline {
+  border-style: solid;
+  background: var(--lv-moderate-soft);
+  color: var(--ink);
+}

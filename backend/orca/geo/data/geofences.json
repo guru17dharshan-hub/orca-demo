@@ -8,15 +8,48 @@
       "geometry": "line",
       "coordinates": [
         [10.0833, 80.0500], [9.9500, 79.5833], [9.6692, 79.3767], [9.3633, 79.5117], [9.2167, 79.5333],
-        [9.1000, 79.5333], [8.8967, 79.4883], [8.6667, 79.3033], [8.6200, 79.2167], [8.5200, 79.0783],
+        [9.1000, 79.5333], [9.0000, 79.5217], [8.8967, 79.4883], [8.6667, 79.3033], [8.6200, 79.2167], [8.5200, 79.0783],
         [8.3700, 78.9233], [8.2033, 78.8950], [7.5883, 78.7617], [7.3500, 78.6467], [6.5133, 78.2033],
         [5.8983, 77.8450], [5.0000, 77.1767]
       ],
       "home_side": "west",
       "authority": "India–Sri Lanka maritime boundary agreements (1974 Palk Strait, 1976 Gulf of Mannar)",
-      "reference": "Agreement between India and Sri Lanka on the Boundary in Historic Waters (1974); Agreement on the Maritime Boundary in the Gulf of Mannar and Bay of Bengal (1976)",
-      "accuracy": "unverified-transcription",
-      "accuracy_note": "Turning points transcribed into decimal degrees for this prototype and NOT yet verified against the treaty text or NHO charts. Bay of Bengal segment north of position 1 not included.",
+      "reference": "Agreement between India and Sri Lanka on the Boundary in Historic Waters (1974), Art. 1; Agreement on the Maritime Boundary in the Gulf of Mannar and the Bay of Bengal (1976), Art. 1 — texts: UN DOALOS Delimitation Treaties Infobase (LKA-IND1974BW.PDF, LKA-IND1976MB.PDF)",
+      "accuracy": "official",
+      "accuracy_note": "All turning points checked against the treaty texts: 1974 positions 1–6 and 1976 positions 1m–13m (1976 position 4m reads '79° 18'.2 N' in the text, taken as E). Treaty great-circle arcs are drawn as straight lines between points (differences of metres at these lengths). Charts (NHO) remain the legal reference at sea.",
+      "warn_distance_km": 9.26,
+      "rule": "Crossing the international maritime boundary without authorization is prohibited."
+    },
+    {
+      "id": "imbl-in-lk-bay-of-bengal",
+      "name": "India–Sri Lanka maritime boundary (Bay of Bengal)",
+      "kind": "boundary_line",
+      "geometry": "line",
+      "coordinates": [
+        [10.0833, 80.0500], [10.0967, 80.0833], [10.1400, 80.1583], [10.5500, 80.7667], [10.6950, 81.0417],
+        [11.0450, 81.9333], [11.2667, 82.4067], [11.4433, 83.3667]
+      ],
+      "home_side": "north",
+      "authority": "Agreement between India and Sri Lanka on the Maritime Boundary in the Gulf of Mannar and the Bay of Bengal (1976)",
+      "reference": "1976 Agreement, Art. 2 (positions 1b, 1ba, 1bb, 2b–6b) — text: UN DOALOS Delimitation Treaties Infobase (LKA-IND1976MB.PDF)",
+      "accuracy": "official",
+      "accuracy_note": "Turning points checked against the treaty text. The agreement leaves the extension beyond position 6b to be settled later; ORCA draws only the agreed part.",
+      "warn_distance_km": 9.26,
+      "rule": "Crossing the international maritime boundary without authorization is prohibited."
+    },
+    {
+      "id": "imbl-in-bd",
+      "name": "India–Bangladesh maritime boundary (Bay of Bengal)",
+      "kind": "boundary_line",
+      "geometry": "line",
+      "coordinates": [
+        [21.6445, 89.1556], [21.4454, 89.1831], [21.1291, 89.2324], [16.7247, 89.4318]
+      ],
+      "home_side": "west",
+      "authority": "Bay of Bengal Maritime Boundary Arbitration (Bangladesh v. India), Award of 7 July 2014 (PCA / UNCLOS Annex VII)",
+      "reference": "Award, Technical Report paras 16, 23–24: Delimitation Points 1–3 (WGS-84), then a geodetic line at azimuth 177° 30' 00\" to its intersection with the Bangladesh/Myanmar line at 16° 43' 28.77\" N, 89° 25' 54.39\" E — RIAA vol. XXXII pp. 1–182 (legal.un.org)",
+      "accuracy": "official",
+      "accuracy_note": "Points from the Award; the long southern leg is a geodesic drawn here as a straight line (a few hundred metres at most at 490 km). Charts (NHO) remain the legal reference at sea.",
       "warn_distance_km": 9.26,
       "rule": "Crossing the international maritime boundary without authorization is prohibited."
     },

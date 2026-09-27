@@ -22,6 +22,7 @@ const L: Record<string, Dict> = {
     timeline: "Risk over time", lowest: "Lowest-risk window", none: "None in this window", overall: "Overall risk",
     listen: "Listen", speak: "Speak", location: "Location", useGps: "Use GPS", simulated: "SIMULATED DATA",
     live: "LIVE DATA", fallback: "LIVE SOURCE DOWN — SIMULATED", conditions: "Conditions",
+    micListening: "Listening… just pause when you are done", micWorking: "Writing down what you said…", micError: "Could not catch that — please speak again or type", micDenied: "Allow the microphone to ask by voice",
   },
   hi: {
     risingFrom: "{factor} → {time} बजे से जोखिम {level}",
@@ -32,6 +33,7 @@ const L: Record<string, Dict> = {
     zones: "क्षेत्र", timeline: "समय के साथ जोखिम", lowest: "सबसे कम जोखिम का समय", none: "इस अवधि में नहीं",
     overall: "कुल जोखिम", listen: "सुनें", speak: "बोलें", location: "स्थान", useGps: "GPS", simulated: "सिम्युलेटेड डेटा",
     live: "लाइव डेटा", fallback: "लाइव स्रोत बंद — सिम्युलेटेड", conditions: "स्थिति",
+    micListening: "सुन रहे हैं… बात पूरी होने पर बस रुक जाएँ", micWorking: "आपकी बात लिख रहे हैं…", micError: "बात समझ नहीं आई — फिर से बोलें या लिखें", micDenied: "आवाज़ से पूछने के लिए माइक्रोफ़ोन की अनुमति दें",
   },
   ta: {
     risingFrom: "{factor} → {time} முதல் அபாயம் {level}",
@@ -43,6 +45,7 @@ const L: Record<string, Dict> = {
     none: "இந்த நேரத்தில் இல்லை", overall: "மொத்த அபாயம்", listen: "கேள்", speak: "பேசு", location: "இடம்",
     useGps: "GPS", simulated: "உருவகப்படுத்தப்பட்ட தரவு", live: "நேரடி தரவு", fallback: "நேரடி மூலம் இல்லை — உருவகம்",
     conditions: "நிலை",
+    micListening: "கேட்கிறது… பேசி முடித்ததும் நிறுத்துங்கள்", micWorking: "நீங்கள் சொன்னதை எழுதுகிறது…", micError: "புரியவில்லை — மீண்டும் பேசவும் அல்லது தட்டச்சு செய்யவும்", micDenied: "குரலில் கேட்க மைக்ரோஃபோன் அனுமதி தேவை",
   },
   te: {
     risingFrom: "{factor} → {time} నుండి ప్రమాదం {level}",
@@ -53,6 +56,7 @@ const L: Record<string, Dict> = {
     zones: "ప్రాంతాలు", timeline: "సమయానుసార ప్రమాదం", lowest: "తక్కువ ప్రమాద సమయం", none: "ఈ సమయంలో లేదు",
     overall: "మొత్తం ప్రమాదం", listen: "వినండి", speak: "మాట్లాడండి", location: "ప్రదేశం", useGps: "GPS",
     simulated: "అనుకరణ డేటా", live: "లైవ్ డేటా", fallback: "లైవ్ మూలం లేదు — అనుకరణ", conditions: "పరిస్థితి",
+    micListening: "వింటోంది… మాట్లాడటం పూర్తయ్యాక ఆగండి", micWorking: "మీరు చెప్పింది రాస్తోంది…", micError: "అర్థం కాలేదు — మళ్లీ మాట్లాడండి లేదా టైప్ చేయండి", micDenied: "వాయిస్‌తో అడగడానికి మైక్రోఫోన్ అనుమతి ఇవ్వండి",
   },
   ml: {
     risingFrom: "{factor} → {time} മുതൽ അപകടസാധ്യത {level}",
@@ -64,6 +68,7 @@ const L: Record<string, Dict> = {
     none: "ഈ സമയത്ത് ഇല്ല", overall: "മൊത്തം അപകടസാധ്യത", listen: "കേൾക്കുക", speak: "സംസാരിക്കുക", location: "സ്ഥാനം",
     useGps: "GPS", simulated: "സിമുലേറ്റ് ചെയ്ത ഡാറ്റ", live: "ലൈവ് ഡാറ്റ", fallback: "ലൈവ് ഉറവിടം ലഭ്യമല്ല — സിമുലേഷൻ",
     conditions: "സാഹചര്യം",
+    micListening: "കേൾക്കുന്നു… പറഞ്ഞു കഴിഞ്ഞാൽ നിർത്തുക", micWorking: "നിങ്ങൾ പറഞ്ഞത് എഴുതുന്നു…", micError: "മനസ്സിലായില്ല — വീണ്ടും പറയുക അല്ലെങ്കിൽ ടൈപ്പ് ചെയ്യുക", micDenied: "ശബ്ദത്തിലൂടെ ചോദിക്കാൻ മൈക്രോഫോൺ അനുമതി നൽകുക",
   },
 };
 

@@ -32,6 +32,8 @@ PROCESSING_VERSION = "historical-normalizer/1"
 GFS_SOURCE = "NOAA GFS 0.5° (archived run)"
 WAVE_SOURCE = "NOAA GFS-Wave 0.25° (archived run)"
 SST_SOURCE = "NOAA OISST v2.1 (AVHRR satellite + in-situ)"
+ISRO_SST_SOURCE = "ISRO INSAT-3DR/3D Imager — L3B daily SST (MOSDAC, SAC-ISRO)"
+TIDE_SOURCE = "Open-Meteo Marine — sea level incl. tides (model prediction)"
 CHL_SOURCE = "NOAA-20 VIIRS chlorophyll-a (NOAA STAR, OC3)"
 CAP_ARCHIVE = "https://cap-sources.s3.amazonaws.com/in-imd-en/"
 
@@ -84,7 +86,7 @@ class HistoricalMarineAdapter(MarineDataAdapter):
     def capabilities(self) -> list[str]:
         return [
             "wave_height", "wave_period", "wind_speed", "wind_direction", "wind_gusts", "visibility",
-            "precipitation", "weather_code", "sea_surface_temperature", "chlorophyll",
+            "precipitation", "weather_code", "sea_surface_temperature", "chlorophyll", "sea_level",
         ]
 
     async def fetch(self, query: PointQuery) -> RawPayload:
@@ -155,7 +157,18 @@ class HistoricalMarineAdapter(MarineDataAdapter):
                     code = derive_weather_code(li.value, cp.value if cp else None, pr.value if pr else None)
                     put("weather_code", code, GFS_SOURCE + " — derived", li, "0.5° grid (~55 km)", DataType.DERIVED,
                         f"derived from GFS run {li.cycle:%Y-%m-%d %HZ}: lifted index + convective rain (thunderstorm), rain rate (AMS classes)")
-        if "sea_surface_temperature" in want:
+        if "sea_level" in want:
+            tide = arc.tide_at(lat, lon, t)
+            if tide is not None:
+                harmonic = (arc.tide_method or "").startswith("harmonic")
+                put("sea_level", tide[0], TIDE_SOURCE + (" — harmonic prediction" if harmonic else ""), None,
+                    f"harbour point: {tide[1]}", DataType.DERIVED if harmonic else DataType.FORECAST,
+                    f"predicted sea level at {tide[1]}: {arc.tide_method} (tides are known in advance)")
+        isro = arc.isro_sst_at(lat, lon, as_of) if "sea_surface_temperature" in want else None
+        if isro is not None:  # ISRO's own satellite first; NOAA's blended analysis where clouds hid the sea
+            put("sea_surface_temperature", isro[0], ISRO_SST_SOURCE, None, "0.05° daily (regridded from 4 km pixels)",
+                DataType.OBSERVATION, f"MOSDAC {isro[2]} (daily composite for {isro[1]:%d %b %Y})")
+        elif "sea_surface_temperature" in want:
             got = arc.sst_at(lat, lon, as_of)
             if got is not None:
                 put("sea_surface_temperature", got[0], SST_SOURCE, None, "0.25° daily", DataType.OBSERVATION,

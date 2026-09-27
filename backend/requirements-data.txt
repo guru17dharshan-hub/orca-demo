@@ -4,3 +4,4 @@ eccodes>=2.37      # GRIB2 decoding (bundles the ecCodes library)
 netCDF4>=1.6       # NOAA OISST
 pyhdf>=0.11        # VIIRS chlorophyll (HDF4)
 numcodecs>=0.12    # ERA5 (ARCO Zarr, blosc) for the backtest
+h5py>=3.10          # ISRO INSAT L3B SST from MOSDAC (scripts/historical/fetch_mosdac.py)

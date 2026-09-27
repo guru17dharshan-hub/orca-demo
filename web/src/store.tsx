@@ -137,6 +137,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         language: lang === "auto" ? null : lang,
       });
       setSessionId(res.session_id);
+      // A place named in the question (a port or coordinates) becomes the app's location, so every page's map
+      // and data follow the conversation instead of staying on the previous place.
+      if (res.place && (res.place.source === "port" || res.place.source === "coordinates"))
+        setPlace({ lat: res.place.lat, lon: res.place.lon, label: res.place.label, source: "answer" });
       setMessages((m) => [...m, { id: res.request_id, role: "assistant", text: res.answer, res }]);
       setActiveId(res.request_id);
       return res;

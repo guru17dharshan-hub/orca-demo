@@ -84,6 +84,13 @@ answers the recorded questions.
 | `ORCA_ANTHROPIC_MODEL` | `claude-opus-5` | Model for explanations |
 | `ORCA_LLM_EFFORT` | `low` | Explanations are short rewrites of structured evidence |
 | `ORCA_ALERT_INTERVAL_S` | `300` | Background re-evaluation period for watched locations (0 = off) |
+| `MOSDAC_USERNAME` / `MOSDAC_PASSWORD` | unset | ISRO MOSDAC login, only for `scripts/historical/fetch_mosdac.py` (INSAT-3DR/3D L3B daily SST into the replay archive). ORCA prefers ISRO SST over NOAA OISST wherever it has a cloud-free value |
+| `ORCA_MOSDAC_SEARCH` | `1` | The catalogue agent searches ISRO MOSDAC (public, no login) for satellite products covering each question; `0` turns it off |
+| `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_SMS_FROM` / `TWILIO_WHATSAPP_FROM` | unset | SMS/WhatsApp alerts to subscribed phones; without them messages are kept in the `/api/outbox` demo outbox |
+| `ORCA_ADMIN_TOKEN` | unset | When set, the shared clock, replay-event and re-evaluate endpoints require header `X-Orca-Admin-Token`; in the UI run `localStorage.setItem("orca.adminToken", "<token>")` once. Set it whenever the server is reachable by others |
+| `GROQ_API_KEY` / `ORCA_GROQ_MODEL` | unset / `openai/gpt-oss-120b` | Groq LLM (used first by `ORCA_LLM_PROVIDER=auto`) |
+| `GEMINI_API_KEY` / `ORCA_GEMINI_MODEL` | unset / `gemini-2.5-flash` | Gemini LLM; with both keys, `auto` tries Groq then Gemini (e.g. when Groq's free tier is rate-limited) |
+| `ORCA_GEMINI_STT_MODEL` / `ORCA_WHISPER_MODEL` | `gemini-2.5-flash` / `whisper-large-v3` | Voice input: the chat mic uploads the recording to `/api/transcribe`, which transcribes it in the speaker's language and script (Gemini first — exact on Hindi/Tamil/Malayalam in tests — then Whisper on Groq). The transcript lands in the question box for the user to check. Without either key the browser's own recognizer is used (Chrome/Edge only) |
 
 Without an API key ORCA is fully functional: answers come from deterministic multilingual templates.
 
@@ -167,7 +174,7 @@ when the engine says HIGH / SEVERE / cannot confirm. The UI never parses answer 
   Values derived from model fields (thunderstorm, cyclone watch) are tagged DERIVED; fishing zones are candidates
   computed from satellite data, not INCOIS advisories. The simulated scenario remains for tests and `replay` mode.
 - **Risk thresholds** are anchored to WMO sea-state, Beaufort, marine visibility terms and CAP severity, but their
-  mapping to ORCA levels is a prototype policy (`orca-rules-0.2.0`) that must be validated with INCOIS/IMD.
+  mapping to ORCA levels is a prototype policy (`orca-rules-0.2.1`) that must be validated with INCOIS/IMD.
 - **Geofence layers are not authoritative yet**: the India–Sri Lanka boundary points are an unverified transcription of
   the 1974/1976 agreements; protected areas are approximate envelopes. Each feature shows its accuracy label.
 - **INCOIS PFZ** WFS integration is written but was not reachable from the development network; verify the endpoint.

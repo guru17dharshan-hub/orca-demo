@@ -2,9 +2,10 @@
 
 Cost function (explicit, so 'safer' has a defined meaning):
     edge_cost = travel_time_h × (1 + w[risk level at the time the boat reaches that edge])
-    w: LOW 0 · MODERATE 1 · INSUFFICIENT_DATA 3 · HIGH 6 · SEVERE = forbidden
+    w: LOW 0 · MODERATE 1 · INSUFFICIENT_DATA 3 · HIGH and SEVERE = forbidden
 Hard constraints (edge rejected): land, restricted/protected areas, crossing a
-maritime boundary, SEVERE risk at arrival time.
+maritime boundary, HIGH or SEVERE risk at arrival time (HIGH is 'not advisable
+for small fishing boats', so a recommended route never passes through it).
 
 Weather is evaluated at the boat's estimated arrival time on each edge, so a
 route can legitimately avoid a storm cell that is still passing — something a
@@ -32,11 +33,11 @@ RISK_WEIGHTS = {
     RiskLevel.LOW: 0.0,
     RiskLevel.MODERATE: 1.0,
     RiskLevel.INSUFFICIENT_DATA: 3.0,
-    RiskLevel.HIGH: 6.0,
 }
+FORBIDDEN_LEVELS = (RiskLevel.HIGH, RiskLevel.SEVERE)
 COST_FUNCTION = (
     "edge cost = travel time × (1 + w), w by risk level at the boat's arrival time: LOW 0, MODERATE 1, "
-    "INSUFFICIENT_DATA 3, HIGH 6; SEVERE conditions, land, restricted/protected areas and maritime-boundary "
+    "INSUFFICIENT_DATA 3; HIGH and SEVERE conditions, land, restricted/protected areas and maritime-boundary "
     "crossings are forbidden"
 )
 
@@ -220,6 +221,10 @@ class RoutePlanner:
             waypoints.append(Waypoint(lat=b[0], lon=b[1], eta=t_end))
             t = t_end
         total = sum(s.distance_km for s in segments)
+        # Same rule as the point risk engine: a data gap means ORCA cannot confirm the route is safe,
+        # unless a known stretch is already HIGH or SEVERE.
+        if level_hours.get(RiskLevel.INSUFFICIENT_DATA.value) and (worst is None or RANK[worst] < RANK[RiskLevel.HIGH]):
+            worst = RiskLevel.INSUFFICIENT_DATA
         return RoutePlan(
             kind=kind, feasible=feasible, waypoints=waypoints, distance_km=round(total, 1),
             duration_h=round(total / self.speed_kmh, 2), max_level=worst, level_hours=level_hours,
@@ -235,15 +240,17 @@ class RoutePlanner:
         if not _edge_on_sea(*inner):  # ignore harbour-mouth pixels at the very ends
             violations.append("Straight line crosses land")
         plan = self.summarize("direct", [start, end], violations, feasible=True)
-        if any(lv == RiskLevel.SEVERE for *_, lv, _ in self._walk([start, end], self.departure)):
-            plan.violations.append("Passes through SEVERE conditions")
+        levels = {lv for *_, lv, _ in self._walk([start, end], self.departure)}
+        for level in reversed(FORBIDDEN_LEVELS):
+            if level in levels:
+                plan.violations.append(f"Passes through {level.value} conditions")
         plan.feasible = not plan.violations
         return plan
 
     # --- search --------------------------------------------------------------------------
     def _edge_ok(self, a, b, t_mid) -> RiskLevel | None:
         level, _ = self.field.level_at((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, t_mid)
-        if level == RiskLevel.SEVERE or self.geofences.segment_violations(a, b, t_mid):
+        if level in FORBIDDEN_LEVELS or self.geofences.segment_violations(a, b, t_mid):
             return None
         return level
 
@@ -324,7 +331,7 @@ class RoutePlanner:
         def leg_cost(pts, t0):
             total, worst = 0.0, RiskLevel.LOW
             for a, b, ts, te, lv, _ in self._walk(pts, t0):
-                if lv == RiskLevel.SEVERE:
+                if lv in FORBIDDEN_LEVELS:
                     return math.inf, lv
                 total += (te - ts).total_seconds() / 3600 * (1 + RISK_WEIGHTS[lv])
                 if RANK.get(lv, 1.5) > RANK.get(worst, 1.5):
@@ -367,7 +374,7 @@ def explain(direct: RoutePlan, rec: RoutePlan | None, speed_kmh: float) -> list[
     reasons: list[str] = []
     if rec is None:
         reasons.append(
-            "No route found that avoids SEVERE conditions, land and restricted areas in the planning window — "
+            "No route found that avoids HIGH/SEVERE conditions, land and restricted areas in the planning window — "
             "do not depart; wait for conditions to improve."
         )
         reasons.extend(f"Direct route: {v.rstrip('.')}." for v in direct.violations)

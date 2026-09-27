@@ -1616,6 +1616,7 @@ thead th {
   text-transform: uppercase;
 }
 .bridge-q {
+  letter-spacing: normal;
   font-family: var(--display);
   font-weight: 800;
   font-size: 2rem;
@@ -2933,5 +2934,123 @@ thead th {
   }
   .foot {
     padding-inline: 16px;
+  }
+}
+
+.mic-status {
+  margin: 6px 2px 0;
+}
+.mic-status.error {
+  color: var(--magenta);
+}
+
+/* ------------------------------------------------------------------ Home intro: what ORCA is */
+.intro {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  gap: 28px 48px;
+  align-items: start;
+  padding: 36px 0 32px;
+  margin-bottom: 20px;
+  border-bottom: 3px double var(--rule-strong);
+  animation: rise 0.6s var(--ease) both;
+}
+.intro-copy {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+}
+.intro h1 {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: clamp(2.4rem, 5.2vw, 4.4rem);
+  line-height: 0.95;
+  text-transform: uppercase;
+  letter-spacing: 0.005em;
+}
+.intro h1 em {
+  display: block;
+  font-style: normal;
+  color: var(--magenta);
+}
+.intro-lede {
+  font-size: 1.08rem;
+  line-height: 1.6;
+  color: var(--ink-2);
+  max-width: 62ch;
+}
+.intro-lede b {
+  color: var(--ink);
+}
+.intro-langs {
+  font-weight: 700;
+}
+.intro-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.intro-sources {
+  font-size: 0.76rem;
+  color: var(--ink-3);
+  letter-spacing: 0.03em;
+}
+.intro-side {
+  display: grid;
+  gap: 14px;
+}
+.intro-flow {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--rule);
+}
+.intro-flow li {
+  display: grid;
+  grid-template-columns: 2.4rem 6.2rem minmax(0, 1fr);
+  gap: 4px 10px;
+  align-items: baseline;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--rule);
+  animation: rise 0.5s var(--ease) both;
+}
+.flow-n {
+  font-size: 0.74rem;
+  color: var(--magenta);
+}
+.flow-k {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 1.15rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.flow-t {
+  font-size: 0.93rem;
+  color: var(--ink-2);
+}
+.intro-rule {
+  font-size: 0.93rem;
+  line-height: 1.5;
+  padding: 12px 14px;
+  border-left: 3px solid var(--magenta);
+  background: var(--magenta-soft);
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+@media (max-width: 1000px) {
+  .intro {
+    grid-template-columns: minmax(0, 1fr);
+    padding-top: 20px;
+  }
+}
+@media (max-width: 520px) {
+  .intro-flow li {
+    grid-template-columns: 2rem minmax(0, 1fr);
+  }
+  .flow-t {
+    grid-column: 2;
+  }
+  .intro-actions button {
+    flex: 1 1 100%;
   }
 }

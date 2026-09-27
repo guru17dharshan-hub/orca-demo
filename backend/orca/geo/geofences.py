@@ -68,7 +68,7 @@ SEVERITY_ORDER = ["clear", "approaching", "inside_protected", "inside_restricted
 
 
 def load_features(path: Path = DATA_FILE) -> list[GeofenceFeature]:
-    data = json.loads(path.read_text())
+    data = json.loads(path.read_text(encoding="utf-8"))
     return [GeofenceFeature(**f) for f in data["features"]]
 
 

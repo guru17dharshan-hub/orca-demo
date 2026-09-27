@@ -1,0 +1,1048 @@
+/* ==================================================================================================
+   SONAR — ORCA's signature layer, loaded after styles.css: the mark, the icon set, tide buttons,
+   sonar ripples, chart crop marks, the lamp that follows the pointer, and the motion that ties pages
+   together. Every loop here is decorative; styles.css's reduced-motion block (and the one at the end
+   of this file) flattens all of it to its end state.
+   ================================================================================================== */
+:root {
+  --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --glide: cubic-bezier(0.22, 1, 0.36, 1);
+  --tide-wave: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 10'%3E%3Cpath d='M0 5q10-6 20 0t20 0v5H0z'/%3E%3C/svg%3E");
+}
+
+/* ---------------------------------------------------------------- the mark */
+.orca-mark {
+  color: var(--bar-ink);
+  fill: none;
+  overflow: visible;
+}
+.orca-mark .om-ring {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: ic-draw 1.2s var(--glide) 0.1s forwards;
+}
+.orca-mark .om-disc {
+  fill: currentColor;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: om-disc 0.7s var(--spring) 0.15s both;
+}
+@keyframes om-disc {
+  from {
+    transform: scale(0);
+  }
+}
+.orca-mark .om-body {
+  fill: var(--bar);
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  transition: transform 0.55s var(--spring);
+}
+.orca-mark .om-patch {
+  fill: currentColor;
+}
+.orca-mark .om-chin {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1;
+  stroke-linecap: round;
+}
+.orca-mark .om-wave {
+  fill: none;
+  stroke: var(--magenta);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  animation: om-wave 2.8s linear infinite;
+}
+.brand:hover .om-body {
+  transform: translateY(-3px) rotate(-9deg);
+}
+.brand-word {
+  transition: letter-spacing 0.5s var(--glide);
+}
+.brand:hover .brand-word {
+  letter-spacing: 0.2em;
+}
+@keyframes om-wave {
+  to {
+    transform: translateX(-21px);
+  }
+}
+
+/* ---------------------------------------------------------------- first-visit splash */
+.splash {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 18px;
+  background: var(--bar);
+  color: var(--bar-ink);
+  pointer-events: none;
+  animation: splash-out 0.55s var(--glide) 1s forwards;
+}
+.splash-mark {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+.splash .orca-mark .om-ring {
+  animation-duration: 0.9s;
+}
+.splash-ping {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid var(--magenta);
+  opacity: 0;
+  animation: ping-out 1.2s var(--glide) 0.35s both;
+}
+.splash-ping.p2 {
+  animation-delay: 0.6s;
+}
+.splash-word {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 1.3rem;
+  letter-spacing: 0.55em;
+  padding-left: 0.55em;
+  animation: rise 0.6s var(--glide) 0.3s both;
+}
+@keyframes splash-out {
+  from {
+    clip-path: circle(150% at 50% 50%);
+  }
+  to {
+    clip-path: circle(0% at 50% 46%);
+    visibility: hidden;
+  }
+}
+@keyframes ping-out {
+  from {
+    transform: scale(0.6);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(2.8);
+    opacity: 0;
+  }
+}
+
+/* ---------------------------------------------------------------- icon set */
+.ic {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex-shrink: 0;
+  overflow: visible;
+  vertical-align: -0.2em;
+}
+.ic .i-solid,
+.ic .i-dot {
+  fill: currentColor;
+  stroke: none;
+}
+.ic .i-fill {
+  fill: var(--magenta);
+  stroke: none;
+}
+.ic .i-dash {
+  stroke-dasharray: 0.07 0.09;
+}
+.ic g,
+.ic path,
+.ic circle {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.ic .i-flag {
+  transform-origin: 0% 100%;
+}
+.ic .i-sail {
+  transform-origin: 50% 100%;
+  transition: transform 0.45s var(--spring);
+}
+.ic .i-l1,
+.ic .i-l3 {
+  transition: transform 0.4s var(--spring);
+}
+/* signature motion of each icon, played while its button, link or tile is hovered */
+:is(a, button, .station, .plate-heading):hover .ic .i-spin {
+  animation: ic-spin 1.1s var(--glide);
+}
+:is(a, button, .station, .plate-heading):hover .ic .i-wave {
+  animation: ic-wave 1.3s ease-in-out infinite;
+}
+:is(a, button, .station, .plate-heading):hover .ic .i-wave2 {
+  animation-delay: -0.65s;
+}
+:is(a, button, .station, .plate-heading):hover .ic .i-swim {
+  animation: ic-swim 1s ease-in-out infinite;
+}
+:is(a, button, .station, .plate-heading):hover .ic .i-ring {
+  animation: ic-spin 1.4s var(--glide);
+}
+:is(a, button, .station, .plate-heading):hover .ic .i-beam {
+  animation: ic-beam 0.9s steps(2, jump-none) infinite;
+}
+:is(a, button, .station, .plate-heading):hover .ic .i-bob {
+  animation: ic-bob 1.1s ease-in-out infinite;
+}
+:is(a, button, .station, .plate-heading):hover .ic .i-hands {
+  animation: ic-rewind 1.2s var(--glide);
+}
+:is(a, button, .station, .plate-heading):hover .ic .i-node {
+  animation: ic-node 1.2s var(--spring) infinite;
+}
+:is(a, button, .station, .plate-heading):hover .ic .n2 {
+  animation-delay: 0.15s;
+}
+:is(a, button, .station, .plate-heading):hover .ic .n3 {
+  animation-delay: 0.3s;
+}
+:is(a, button, .station, .plate-heading):hover .ic .n4 {
+  animation-delay: 0.45s;
+}
+:is(a, button, .station, .plate-heading):hover .ic .i-l1 {
+  transform: translateY(-2.5px);
+}
+:is(a, button, .station, .plate-heading):hover .ic .i-l3 {
+  transform: translateY(2px);
+}
+:is(a, button, .station, .plate-heading):hover .ic .i-dash {
+  animation: ic-march 0.9s linear infinite;
+}
+:is(a, button, .station, .plate-heading):hover .ic .i-flag {
+  animation: ic-flag 0.7s ease-in-out infinite alternate;
+}
+:is(a, button, .station, .plate-heading):hover .ic .i-gust {
+  stroke-dasharray: 1;
+  animation: ic-gust 1.2s var(--glide) infinite;
+}
+:is(a, button, .station, .plate-heading):hover .ic .i-gust2 {
+  animation-delay: 0.2s;
+}
+:is(a, button, .station):hover .ic .i-sail {
+  transform: skewX(-10deg) scaleX(1.08);
+}
+:is(a, button, .station):hover .ic .i-sound {
+  animation: ic-sound 0.9s ease-in-out infinite;
+}
+:is(a, button, .station):hover .ic .s2 {
+  animation-delay: 0.2s;
+}
+:is(a, button, .station):hover .ic .i-drop {
+  animation: ic-drop 0.9s var(--spring) infinite;
+}
+@keyframes ic-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes ic-spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+@keyframes ic-rewind {
+  to {
+    transform: rotate(-1turn);
+  }
+}
+@keyframes ic-wave {
+  50% {
+    transform: translateX(-1.6px) translateY(0.6px);
+  }
+}
+@keyframes ic-swim {
+  25% {
+    transform: translateX(1.6px) rotate(-5deg);
+  }
+  75% {
+    transform: translateX(-1px) rotate(4deg);
+  }
+}
+@keyframes ic-beam {
+  50% {
+    opacity: 0.1;
+  }
+}
+@keyframes ic-bob {
+  50% {
+    transform: translateY(-1.8px) rotate(-4deg);
+  }
+}
+@keyframes ic-node {
+  30% {
+    transform: scale(1.4);
+  }
+}
+@keyframes ic-march {
+  to {
+    stroke-dashoffset: -0.32;
+  }
+}
+@keyframes ic-flag {
+  to {
+    transform: skewY(-12deg) scaleX(0.85);
+  }
+}
+@keyframes ic-gust {
+  from {
+    stroke-dashoffset: 1;
+  }
+  60%,
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes ic-sound {
+  50% {
+    opacity: 0.2;
+  }
+}
+@keyframes ic-drop {
+  50% {
+    transform: translateY(2.5px);
+  }
+}
+
+/* ---------------------------------------------------------------- page emblem (title cartouche) */
+.plate-heading {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.emblem {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  flex-shrink: 0;
+  border-radius: 18px;
+  color: var(--magenta);
+  background: var(--magenta-soft);
+  border: 1px solid color-mix(in srgb, var(--magenta) 35%, transparent);
+  animation: emblem-in 0.8s var(--spring) both;
+  transition: transform 0.5s var(--spring);
+}
+.emblem::before,
+.emblem::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  border: 1.5px solid var(--magenta);
+  opacity: 0;
+  animation: emblem-ping 4.2s var(--glide) 1s infinite;
+}
+.emblem::after {
+  animation-delay: 1.5s;
+}
+.emblem .ic.draw :is(path, circle):not(.i-dash, .i-fill, .i-solid) {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: ic-draw 1.1s var(--glide) 0.3s forwards;
+}
+.emblem .ic.draw :is(.i-dash, .i-fill, .i-solid, .i-dot) {
+  animation: fade 0.5s ease 1s both;
+}
+.plate-heading:hover .emblem {
+  transform: rotate(-7deg) scale(1.06);
+}
+@keyframes emblem-in {
+  from {
+    transform: scale(0.4) rotate(-25deg);
+    opacity: 0;
+  }
+}
+@keyframes emblem-ping {
+  from {
+    transform: scale(1);
+    opacity: 0.45;
+  }
+  30%,
+  to {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+}
+
+/* ---------------------------------------------------------------- buttons: tide fill + sonar ripple */
+button {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  --tide: var(--magenta);
+}
+button:where(:not([class]), .ghost, .btn-hero, .send-btn)::before {
+  content: "";
+  position: absolute;
+  inset: 0 -2px -2px;
+  z-index: -1;
+  background: var(--tide);
+  -webkit-mask: var(--tide-wave) 0 0 / 40px 10px repeat-x, linear-gradient(#000, #000) 0 9px / 100% 100% no-repeat;
+  mask: var(--tide-wave) 0 0 / 40px 10px repeat-x, linear-gradient(#000, #000) 0 9px / 100% 100% no-repeat;
+  transform: translateY(105%);
+  transition: transform 0.5s var(--glide);
+}
+button:where(:not([class]), .ghost, .btn-hero, .send-btn):hover:not(:disabled)::before {
+  transform: translateY(-9px);
+  animation: tide-flow 1.1s linear infinite;
+}
+button.ghost {
+  --tide: var(--ink);
+  transition: color 0.35s var(--glide), border-color 0.35s, transform 0.15s var(--ease);
+}
+button.ghost:hover:not(:disabled) {
+  color: var(--paper);
+  border-color: var(--ink);
+}
+button::after {
+  content: "";
+  position: absolute;
+  left: var(--rx, 50%);
+  top: var(--ry, 50%);
+  width: var(--rs, 220px);
+  height: var(--rs, 220px);
+  margin: calc(var(--rs, 220px) / -2) 0 0 calc(var(--rs, 220px) / -2);
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(
+    circle,
+    transparent 0 28%,
+    color-mix(in srgb, currentColor 40%, transparent) 29% 31%,
+    transparent 32% 46%,
+    color-mix(in srgb, currentColor 22%, transparent) 47% 48.5%,
+    transparent 49.5%
+  );
+  transform: scale(0);
+  opacity: 0;
+}
+button.rippling::after {
+  animation: sonar-ripple 0.7s var(--glide);
+}
+button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+.btn-hero {
+  padding: 12px 22px;
+  font-size: 1.02rem;
+  box-shadow: 0 10px 28px -14px var(--magenta);
+}
+.send-btn {
+  gap: 7px;
+}
+@keyframes tide-flow {
+  to {
+    -webkit-mask-position: 40px 0, 0 9px;
+    mask-position: 40px 0, 0 9px;
+  }
+}
+@keyframes sonar-ripple {
+  from {
+    transform: scale(0.05);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+.mic-busy {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  animation: ic-spin 0.8s linear infinite;
+}
+
+/* ---------------------------------------------------------------- panels: crop marks + chart lamp */
+.panel {
+  position: relative;
+  transition: border-color 0.3s, box-shadow 0.35s var(--glide);
+}
+.panel::before {
+  content: "";
+  position: absolute;
+  inset: -7px;
+  pointer-events: none;
+  background:
+    linear-gradient(var(--magenta), var(--magenta)) 0 0 / 12px 1.5px no-repeat,
+    linear-gradient(var(--magenta), var(--magenta)) 0 0 / 1.5px 12px no-repeat,
+    linear-gradient(var(--magenta), var(--magenta)) 100% 100% / 12px 1.5px no-repeat,
+    linear-gradient(var(--magenta), var(--magenta)) 100% 100% / 1.5px 12px no-repeat;
+  opacity: 0.35;
+  transition: opacity 0.35s, background-size 0.45s var(--glide);
+}
+.panel:hover::before {
+  opacity: 1;
+  background-size: 26px 1.5px, 1.5px 26px, 26px 1.5px, 1.5px 26px;
+}
+.panel:hover,
+.bridge-card:hover {
+  background-image: radial-gradient(520px circle at var(--mx, 50%) var(--my, 50%), color-mix(in srgb, var(--magenta) 7%, transparent), transparent 60%);
+}
+.panel-head h2 {
+  position: relative;
+  padding-left: 14px;
+}
+.panel-head h2::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  margin-top: -4px;
+  border-radius: 50%;
+  background: var(--magenta);
+  animation: beacon 2.8s ease-out infinite;
+}
+@keyframes beacon {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--magenta) 55%, transparent);
+  }
+  70%,
+  100% {
+    box-shadow: 0 0 0 9px transparent;
+  }
+}
+
+/* ---------------------------------------------------------------- risk chips: urgent levels pulse */
+.chip-level.lv-high::before,
+.chip-level.lv-severe::before {
+  animation: beacon-dot 1.6s ease-out infinite;
+}
+@keyframes beacon-dot {
+  0% {
+    box-shadow: 0 0 0 0 currentColor;
+  }
+  80%,
+  100% {
+    box-shadow: 0 0 0 6px transparent;
+  }
+}
+.dial-sector.on {
+  filter: drop-shadow(0 0 6px currentColor);
+}
+
+/* ---------------------------------------------------------------- navigation */
+.nav-ink {
+  transition: transform 0.55s var(--spring), width 0.55s var(--spring);
+  box-shadow: 0 0 12px var(--magenta);
+}
+.theme-btn .ic {
+  transition: transform 0.5s var(--spring);
+}
+.theme-btn:hover .ic {
+  transform: rotate(40deg);
+}
+.menu-btn .ic {
+  color: var(--bar-ink);
+}
+.menu-btn[aria-expanded="true"] .ic .i-wave {
+  animation: ic-wave 1.3s ease-in-out infinite;
+}
+.more-menu a b {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.more-menu a .ic {
+  color: var(--magenta);
+}
+.sheet-grid a {
+  grid-template-columns: auto 1fr;
+  column-gap: 12px;
+  align-items: start;
+}
+.sheet-grid a .ic {
+  grid-row: span 2;
+  color: var(--magenta);
+  margin-top: 2px;
+}
+.navbar {
+  view-transition-name: navbar;
+}
+
+/* ---------------------------------------------------------------- home: stations + ocean hero */
+.station {
+  grid-template-rows: auto auto 1fr auto;
+  isolation: isolate;
+}
+.station-icon {
+  color: var(--magenta);
+  margin-bottom: 4px;
+  transition: transform 0.45s var(--spring);
+}
+.station:hover .station-icon {
+  transform: scale(1.15) rotate(-6deg);
+}
+.station::before {
+  content: "";
+  position: absolute;
+  inset: 0 -2px -2px;
+  z-index: -1;
+  background: var(--magenta-soft);
+  -webkit-mask: var(--tide-wave) 0 0 / 40px 10px repeat-x, linear-gradient(#000, #000) 0 9px / 100% 100% no-repeat;
+  mask: var(--tide-wave) 0 0 / 40px 10px repeat-x, linear-gradient(#000, #000) 0 9px / 100% 100% no-repeat;
+  transform: translateY(100%);
+  transition: transform 0.7s var(--glide);
+}
+.station:hover::before {
+  transform: translateY(62%);
+  animation: tide-flow 1.6s linear infinite;
+}
+.intro {
+  position: relative;
+  isolation: isolate;
+}
+.ocean {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+.ocean .contours {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.ocean .contours path {
+  fill: none;
+  stroke: color-mix(in srgb, var(--ink) 9%, transparent);
+  stroke-width: 1;
+  stroke-dasharray: 3 7;
+  animation: contour-drift 14s ease-in-out infinite alternate;
+}
+.ocean .contours path:nth-child(even) {
+  animation-duration: 18s;
+  animation-direction: alternate-reverse;
+}
+.ocean .swells {
+  -webkit-mask-image: linear-gradient(to bottom, #000 35%, transparent 95%);
+  mask-image: linear-gradient(to bottom, #000 35%, transparent 95%);
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 46%;
+}
+.ocean .sw {
+  animation: swell 11s linear infinite;
+}
+.ocean .s1 {
+  fill: color-mix(in srgb, var(--sea-deep) 7%, transparent);
+}
+.ocean .s2 {
+  fill: color-mix(in srgb, var(--magenta) 5%, transparent);
+  animation-duration: 16s;
+  animation-direction: reverse;
+}
+.ocean .s3 {
+  fill: color-mix(in srgb, var(--sea-deep) 9%, transparent);
+  animation-duration: 8s;
+}
+.ocean-ping {
+  position: absolute;
+  right: 22%;
+  top: 44%;
+  width: 380px;
+  height: 380px;
+  margin: -190px -190px 0 0;
+  border-radius: 50%;
+  border: 1.5px solid color-mix(in srgb, var(--magenta) 30%, transparent);
+  opacity: 0;
+  animation: ocean-ping 6s var(--glide) 1.2s infinite;
+}
+.ocean-ping.p2 {
+  animation-delay: 4.2s;
+}
+@keyframes swell {
+  to {
+    transform: translateX(-200px);
+  }
+}
+@keyframes contour-drift {
+  to {
+    transform: translateY(10px) translateX(-14px);
+  }
+}
+@keyframes ocean-ping {
+  from {
+    transform: scale(0.1);
+    opacity: 0.9;
+  }
+  70%,
+  to {
+    transform: scale(1.35);
+    opacity: 0;
+  }
+}
+.reveal-words .rw {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: bottom;
+  padding-bottom: 0.06em;
+  margin-right: 0.22em;
+}
+.reveal-words .rw > span {
+  display: inline-block;
+  transform: translateY(110%);
+  animation: word-up 0.8s var(--glide) forwards;
+  animation-delay: inherit;
+}
+@keyframes word-up {
+  to {
+    transform: translateY(0);
+  }
+}
+.intro-flow li {
+  position: relative;
+  transition: padding-left 0.4s var(--glide);
+}
+.intro-flow li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  height: 1px;
+  width: 0;
+  background: var(--magenta);
+  transition: width 0.6s var(--glide);
+}
+.intro-flow li:hover {
+  padding-left: 8px;
+}
+.intro-flow li:hover::before {
+  width: 100%;
+}
+
+/* ---------------------------------------------------------------- page transitions */
+::view-transition-old(root) {
+  animation: 0.24s var(--glide) both vt-out;
+}
+::view-transition-new(root) {
+  animation: 0.5s var(--glide) both vt-in;
+}
+@keyframes vt-out {
+  to {
+    opacity: 0;
+    transform: translateY(-12px);
+    filter: blur(3px);
+  }
+}
+@keyframes vt-in {
+  from {
+    opacity: 0;
+    transform: translateY(22px);
+    clip-path: inset(6% 2% 0 2% round 18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    clip-path: inset(0 0 0 0 round 0);
+  }
+}
+
+/* ---------------------------------------------------------------- harbour board (authorities) */
+.board-counts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+.board-count {
+  display: grid;
+  gap: 2px;
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-left: 6px solid var(--lv-unknown);
+}
+.board-count b {
+  font-family: var(--display);
+  font-size: 2.2rem;
+  line-height: 1;
+}
+.board-count.g-hold {
+  border-left-color: var(--lv-severe);
+}
+.board-count.g-care {
+  border-left-color: var(--lv-moderate);
+}
+.board-count.g-go {
+  border-left-color: var(--lv-low);
+}
+.board-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+.board-side {
+  display: grid;
+  gap: 16px;
+}
+.board-map {
+  height: 320px;
+}
+.board-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.board-table th,
+.board-table td {
+  text-align: left;
+  padding: 8px 6px;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+.board-table th {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-2);
+}
+.bulletin-text {
+  white-space: pre-wrap;
+  font-family: var(--body);
+  font-size: 0.95rem;
+  line-height: 1.55;
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+.ghost-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 42px;
+  padding: 9px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--rule-strong);
+  color: var(--ink);
+  font-weight: 700;
+  text-decoration: none;
+}
+.ghost-link:hover {
+  border-color: #25d366;
+  color: var(--ink);
+  background: color-mix(in srgb, #25d366 14%, transparent);
+}
+@media (max-width: 1000px) {
+  .board-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .board-counts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .board-table th:nth-child(4),
+  .board-table td:nth-child(4) {
+    display: none;
+  }
+}
+@media print {
+  .navbar,
+  .navbar-sub,
+  .foot,
+  .plate-actions,
+  .board-map,
+  .row-actions,
+  .splash {
+    display: none !important;
+  }
+  .board-grid {
+    grid-template-columns: 1fr;
+  }
+  .panel::before {
+    display: none;
+  }
+}
+
+/* ---------------------------------------------------------------- harbour comparison (Ask) */
+.compare-list {
+  margin: 0;
+  padding-left: 22px;
+  display: grid;
+  gap: 6px;
+}
+.compare-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 10px;
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+.compare-list li .small {
+  grid-column: 1 / -1;
+}
+.compare-list li.best {
+  background: var(--lv-low-soft);
+  outline: 2px solid var(--lv-low);
+}
+.compare-name {
+  font-weight: 700;
+}
+
+/* ---------------------------------------------------------------- data catalogue (How it decided) */
+.discovery-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.discovery-list li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 2px 10px;
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  border-left: 4px solid var(--rule);
+}
+.discovery-list li.src-covers,
+.discovery-list li.src-found_on_mosdac {
+  border-left-color: var(--lv-low);
+}
+.discovery-list li.src-outside,
+.discovery-list li.src-not_downloaded,
+.discovery-list li.src-not_published {
+  border-left-color: var(--lv-moderate);
+}
+.discovery-list .src-status {
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.discovery-list .src-detail {
+  grid-column: 2 / -1;
+  color: var(--ink-2);
+}
+.agency {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+}
+.agency-isro {
+  background: #ff9933;
+  border-color: #ff9933;
+  color: #1a1a1a;
+}
+
+/* ---------------------------------------------------------------- live voice bubble */
+.msg.voice-live {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 190px;
+  background: color-mix(in srgb, var(--ink) 88%, var(--magenta));
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--magenta) 45%, transparent);
+  animation: rise 0.35s var(--glide) both, voice-glow 1.6s ease-out infinite;
+}
+.msg.voice-live.working {
+  animation: none;
+  opacity: 0.85;
+}
+.voice-hint {
+  opacity: 0.75;
+  font-style: italic;
+}
+.vu {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 22px;
+  flex-shrink: 0;
+}
+.vu i {
+  width: 3px;
+  border-radius: 2px;
+  background: var(--magenta);
+  height: calc(4px + 18px * var(--lvl, 0) * var(--k, 1));
+  transition: height 0.1s linear;
+}
+.vu i:nth-child(1),
+.vu i:nth-child(5) {
+  --k: 0.45;
+}
+.vu i:nth-child(2),
+.vu i:nth-child(4) {
+  --k: 0.75;
+}
+.voice-live.working .vu i {
+  height: 6px;
+  animation: vu-wait 0.9s ease-in-out infinite;
+}
+.voice-live.working .vu i:nth-child(2) {
+  animation-delay: 0.1s;
+}
+.voice-live.working .vu i:nth-child(3) {
+  animation-delay: 0.2s;
+}
+.voice-live.working .vu i:nth-child(4) {
+  animation-delay: 0.3s;
+}
+.voice-live.working .vu i:nth-child(5) {
+  animation-delay: 0.4s;
+}
+.mic-btn.active {
+  animation: voice-glow 1.6s ease-out infinite;
+}
+@keyframes voice-glow {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--magenta) 45%, transparent);
+  }
+  80%,
+  100% {
+    box-shadow: 0 0 0 10px transparent;
+  }
+}
+@keyframes vu-wait {
+  50% {
+    height: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .ocean-ping,
+  .emblem::before,
+  .emblem::after {
+    display: none;
+  }
+}

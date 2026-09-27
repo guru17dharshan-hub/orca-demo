@@ -9,7 +9,7 @@ const LANES = [
   { name: "Understand", items: ["Language detection", "Intent agent", "Conversation context"] },
   { name: "Plan", items: ["Planner: steps and order", "Specialist agents"] },
   { name: "Decide", items: ["Risk rules", "Route planner", "Geofences", "Zone finder"] },
-  { name: "Data", items: ["NOAA GFS / GFS-Wave", "OISST · VIIRS", "IMD warnings"] },
+  { name: "Data", items: ["Catalogue agent", "ISRO INSAT SST (MOSDAC)", "NOAA GFS / GFS-Wave", "OISST · VIIRS", "IMD warnings"] },
   { name: "Explain", items: ["Template or LLM", "Verdict lock", "Evidence"] },
 ];
 
@@ -57,6 +57,21 @@ export default function Agents() {
           <Panel title="Steps">
             <TraceView trace={active.trace} />
           </Panel>
+          {active.cards.discovery && (
+            <Panel title="Data the catalogue agent found" className="discovery-panel">
+              <ul className="discovery-list">
+                {active.cards.discovery.sources.map((s) => (
+                  <li key={s.id} className={`src-${s.status}`}>
+                    <span className={`agency agency-${s.agency.toLowerCase().replace(/[^a-z]/g, "")}`}>{s.agency}</span>
+                    <span className="src-name">{s.name}</span>
+                    <span className="src-status">{s.status.replace(/_/g, " ")}</span>
+                    {s.detail && <span className="src-detail small">{s.detail}</span>}
+                  </li>
+                ))}
+              </ul>
+              {active.cards.discovery.gaps.length > 0 && <p className="small warn">Gaps: {active.cards.discovery.gaps.join(", ").replace(/_/g, " ")}</p>}
+            </Panel>
+          )}
           <Panel title={`Evidence (${active.evidence.length})`} className="agents-evidence">
             <EvidenceList evidence={active.evidence} />
           </Panel>

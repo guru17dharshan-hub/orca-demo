@@ -344,7 +344,7 @@ def fetch_event(event: HistoricalEvent, only: tuple[str, ...] = PRODUCTS) -> Non
     (OUT / event.id).mkdir(parents=True, exist_ok=True)
     t0 = time.time()
     meta_path = OUT / event.id / "meta.json"
-    meta: dict = json.loads(meta_path.read_text()) if meta_path.exists() else {"event": event.id, "products": {}}
+    meta: dict = json.loads(meta_path.read_text(encoding="utf-8")) if meta_path.exists() else {"event": event.id, "products": {}}
     meta.update(title=event.title, retrieved_at=datetime.now(UTC).isoformat())
     if "gfs" in only:
         for kind in ("wave", "atmos"):
@@ -360,7 +360,7 @@ def fetch_event(event: HistoricalEvent, only: tuple[str, ...] = PRODUCTS) -> Non
         print(f"[{event.id}] IMD CAP archive …", flush=True)
         meta["products"]["cap"] = fetch_cap(event)
     meta["seconds"] = round(time.time() - t0)
-    meta_path.write_text(json.dumps(meta, indent=1))
+    meta_path.write_text(json.dumps(meta, indent=1), encoding="utf-8")
     size = sum(p.stat().st_size for p in (OUT / event.id).rglob("*") if p.is_file()) / 1e6
     print(f"[{event.id}] done in {meta['seconds']} s, {size:.1f} MB", flush=True)
 

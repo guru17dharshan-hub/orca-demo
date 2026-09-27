@@ -1,18 +1,36 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import Icon from "./Icon";
 import { ROUTES, go, type RouteId } from "../router";
 import { useApp } from "../store";
 
 const IST_FMT: Intl.DateTimeFormatOptions = { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" };
 
-const PRIMARY: RouteId[] = ["ask", "safety", "zones", "route", "conditions", "alerts", "boundaries", "replay"];
-const MORE: RouteId[] = ["agents", "data"];
+const PRIMARY: RouteId[] = ["fishermen", "ask", "safety", "zones", "route", "conditions", "alerts", "replay"];
+const MORE: RouteId[] = ["board", "boundaries", "agents", "data"];
 
+/** The mark: an orca surfacing inside a sonar ring, a wave running beneath. The ring draws itself in, the wave
+ *  keeps moving, and on hover the orca lifts out of the water. */
 export function OrcaMark({ size = 28 }: { size?: number }) {
+  const clip = `om-${useId().replace(/:/g, "")}`;
   return (
     <svg viewBox="0 0 40 40" width={size} height={size} aria-hidden="true" className="orca-mark">
-      <path d="M4 26c5-1 8-7 15-8 6-1 11 2 17 1-3 5-9 9-17 9-6 0-11-1-15-2z" />
-      <path d="M17 18l4-11 3 11z" />
-      <circle cx="28" cy="22.5" r="1.3" className="eye" />
+      <defs>
+        <clipPath id={clip}>
+          <circle cx="20" cy="20" r="16.6" />
+        </clipPath>
+      </defs>
+      <circle cx="20" cy="20" r="18.6" className="om-ring" pathLength={1} />
+      <g clipPath={`url(#${clip})`}>
+        <circle cx="20" cy="20" r="16.6" className="om-disc" />
+        <g className="om-body">
+          <path d="M8.2 24.6C10.8 21.4 15 19.4 20 18.6c5.2-.8 9.8-.3 12.4 1.8 1.5 1.2 2 2.5 1.6 3.3-.6 1.2-2.6 1.9-5.5 2.4-4.7.9-10.2 1.1-14.7.4-2.2-.3-4.1-.9-5.6-1.9z" />
+          <path d="M16.6 19.3c.2-3.4 1-6.7 2.4-9.8.7 3.3 1.9 6.2 3.6 8.9z" />
+          <path d="M8.8 24.8L4.4 21.6l1.4 3.5-1.7 3.2z" />
+          <ellipse cx="28.4" cy="20.9" rx="2.5" ry="0.95" transform="rotate(-10 28.4 20.9)" className="om-patch" />
+          <path d="M33.6 23.4c-1.4 1.1-3.8 1.7-6.6 2.1" className="om-chin" />
+        </g>
+        <path className="om-wave" d="M-6 31.5c3.5-2.4 7-2.4 10.5 0s7 2.4 10.5 0 7-2.4 10.5 0 7 2.4 10.5 0 7-2.4 10.5 0 7 2.4 10.5 0" />
+      </g>
     </svg>
   );
 }
@@ -86,9 +104,10 @@ export default function Navbar({ route }: { route: RouteId }) {
                 key={id}
                 href={`#${id}`}
                 data-route={id}
-                className={`nav-link ${route === id ? "active" : ""} ${id === "replay" ? "nav-replay" : ""}`}
+                className={`nav-link ${route === id ? "active" : ""} ${id === "replay" ? "nav-replay" : ""} ${id === "fishermen" ? "nav-fisher" : ""}`}
                 aria-current={route === id ? "page" : undefined}
               >
+                {id === "fishermen" && <Icon name="fishermen" size={17} />}
                 {info(id).label}
                 {id === "alerts" && unread > 0 && <span className="badge-count">{unread}</span>}
               </a>
@@ -101,7 +120,9 @@ export default function Navbar({ route }: { route: RouteId }) {
                 <div className="more-menu" role="menu">
                   {MORE.map((id) => (
                     <a key={id} role="menuitem" href={`#${id}`} className={route === id ? "active" : ""}>
-                      <b>{info(id).label}</b>
+                      <b>
+                        <Icon name={id} size={18} /> {info(id).label}
+                      </b>
                       <span>{info(id).blurb}</span>
                     </a>
                   ))}
@@ -114,13 +135,11 @@ export default function Navbar({ route }: { route: RouteId }) {
         <div className="nav-right">
           <ReplayChip />
           <button className="theme-btn" onClick={() => setTheme(nextTheme)} title={`Display: ${themeLabel} (switch to ${nextTheme})`} aria-label={`Display theme: ${themeLabel}`}>
-            <span className={`theme-icon t-${theme}`} aria-hidden />
+            <Icon name={theme === "system" ? "auto" : theme === "light" ? "sun" : "moon"} size={17} />
             <span className="theme-label">{themeLabel}</span>
           </button>
           <button className="menu-btn" aria-expanded={open} aria-controls="sheet" onClick={() => setOpen((o) => !o)} aria-label="All pages">
-            <span />
-            <span />
-            <span />
+            <Icon name="menu" size={22} />
           </button>
         </div>
       </header>
@@ -141,6 +160,7 @@ export default function Navbar({ route }: { route: RouteId }) {
                 <div className="sheet-grid">
                   {ROUTES.filter((r) => r.group === g).map((r, i) => (
                     <a key={r.id} href={r.id === "home" ? "#" : `#${r.id}`} onClick={(e) => (e.preventDefault(), go(r.id))} className={route === r.id ? "active" : ""} style={{ animationDelay: `${i * 35}ms` }}>
+                      <Icon name={r.id} size={24} />
                       <b>{r.label}</b>
                       <span>{r.blurb}</span>
                     </a>

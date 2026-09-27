@@ -57,7 +57,15 @@ def test_geofence_status(lat, lon, status):
 def test_boundary_hit_carries_accuracy_label():
     s = GEOFENCES.check(9.40, 79.60, T)
     assert s.hard_constraints
-    assert s.hits[0].accuracy == "unverified-transcription"
+    assert s.hits[0].accuracy == "official"  # turning points checked against the 1974/1976 treaty texts
+    assert "treaty" in s.hits[0].authority.lower() or "agreement" in s.hits[0].authority.lower()
+
+
+def test_bay_of_bengal_boundaries_have_the_right_home_side():
+    assert GEOFENCES.check(10.3, 81.8, T).status == "beyond_boundary"  # Sri Lankan side of the 1976 line
+    assert GEOFENCES.check(11.8, 81.8, T).status in ("clear", "approaching")
+    assert GEOFENCES.check(20.0, 89.8, T).status == "beyond_boundary"  # east of the 2014 India–Bangladesh line
+    assert GEOFENCES.check(21.3, 88.2, T).status in ("clear", "approaching")  # off Digha
 
 
 def test_seasonal_sensitive_zone_only_active_in_season():
@@ -137,20 +145,20 @@ def svc(replay):
 GOA = snap_to_sea(15.41, 73.79)
 
 
-def test_route_detours_around_passing_thunderstorm(svc, scenario):
-    r = asyncio.run(plan_route(svc, GEOFENCES, GOA, (15.45, 73.35), tomorrow(6), 8.0, scenario.advisories(NOW)))
+@pytest.mark.parametrize("hour", [6, 11])  # 06:00 thunderstorm over the destination · 11:00 wind rising on arrival
+def test_route_never_recommends_high_risk(svc, scenario, hour):
+    r = asyncio.run(plan_route(svc, GEOFENCES, GOA, (15.45, 73.35), tomorrow(hour), 8.0, scenario.advisories(NOW)))
     assert r.simulated
-    assert r.recommended and r.recommended.feasible
-    high_direct = r.direct.level_hours.get("HIGH", 0)
-    high_rec = r.recommended.level_hours.get("HIGH", 0)
-    assert high_direct - high_rec > 1.0
-    assert any("thunderstorm" in reason for reason in r.reasons)
+    assert r.direct.level_hours.get("HIGH", 0) > 0
+    assert not r.direct.feasible and "Passes through HIGH conditions" in r.direct.violations
+    assert r.recommended is None
+    assert r.reasons[0].startswith("No route found")
+
+
+def test_route_calm_trip_keeps_direct_line(svc, scenario):
+    r = asyncio.run(plan_route(svc, GEOFENCES, GOA, (15.45, 73.35), ist(24, 14), 8.0, scenario.advisories(NOW)))
+    assert r.direct.feasible and r.recommended.distance_km == r.direct.distance_km
     assert all(not is_land(w.lat, w.lon) for w in r.recommended.waypoints[1:-1])
-
-
-def test_route_same_trip_later_keeps_direct_line(svc, scenario):
-    r = asyncio.run(plan_route(svc, GEOFENCES, GOA, (15.45, 73.35), tomorrow(11), 8.0, scenario.advisories(NOW)))
-    assert r.recommended.distance_km == r.direct.distance_km
 
 
 def test_route_avoids_restricted_area(svc, scenario):
@@ -176,3 +184,34 @@ def test_route_never_crosses_maritime_boundary(svc):
     assert any("boundary" in v for v in r.direct.violations)
     assert r.recommended is None
     assert r.reasons[0].startswith("Destination: Beyond India–Sri Lanka maritime boundary")
+
+
+class _FixedField:
+    """Risk field stub: LOW south of 15.05°N, `far_level` north of it."""
+
+    def __init__(self, far_level):
+        self.far_level = far_level
+
+    def level_at(self, lat, lon, t):
+        return (RiskLevel.LOW, "wave_height") if lat < 15.05 else (self.far_level, None)
+
+
+@pytest.mark.parametrize("far_level,expected", [
+    (RiskLevel.INSUFFICIENT_DATA, RiskLevel.INSUFFICIENT_DATA),  # a data gap is never reported as LOW
+    (RiskLevel.LOW, RiskLevel.LOW),
+])
+def test_route_max_level_does_not_hide_data_gaps(far_level, expected):
+    from orca.route.planner import RoutePlanner
+
+    planner = RoutePlanner(GeofenceIndex([]), _FixedField(far_level), tomorrow(6), 15.0)
+    plan = planner.summarize("direct", [(15.0, 72.5), (15.5, 72.5)], [], True)
+    assert plan.max_level == expected
+
+
+def test_zone_beyond_trip_range_is_not_viable(scenario):
+    zones = asyncio.run(DemoPFZProvider(scenario).zones(NOW))
+    near = rank_zones(15.4, 73.7, zones, GEOFENCES, NOW, limit=20)  # the demo zones are off Goa
+    assert any(c.viable for c in near)
+    far = rank_zones(11.6, 92.7, zones, GEOFENCES, NOW, limit=20)  # off Port Blair every demo zone is across the sea
+    assert far and not any(c.viable for c in far)
+    assert all("beyond a fishing trip's range" in " ".join(c.issues) for c in far)

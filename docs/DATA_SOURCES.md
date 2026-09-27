@@ -122,7 +122,7 @@ notifications) and set their accuracy to `official`.
 
 ## Risk thresholds
 
-`risk/rules.py` is the only place thresholds live. Version `orca-rules-0.2.0`:
+`risk/rules.py` is the only place thresholds live. Version `orca-rules-0.2.1`:
 
 | Factor | LOW | MODERATE | HIGH | SEVERE | Reference |
 |---|---|---|---|---|---|

@@ -107,13 +107,21 @@ def test_explicit_location_overrides_context():
 def test_route_follow_up_starts_from_harbour_to_zone():
     svc, orc = make()
     r1 = ask(orc, "Where is the nearest fishing zone?", **GOA)
-    r2 = ask(orc, "Show me the safest route there tomorrow at 6 am", r1.session_id, **GOA)
+    r2 = ask(orc, "Show me the safest route there today at 2 pm", r1.session_id, **GOA)
     route = r2.cards["route"]
     assert route["recommended"]["feasible"]
     end = route["end"]
     assert abs(end[0] - 15.45) < 0.01 and abs(end[1] - 73.35) < 0.01
-    assert route["direct"]["level_hours"].get("HIGH", 0) > route["recommended"]["level_hours"].get("HIGH", 0)
     assert any(f["properties"]["kind"] == "route_recommended" for f in r2.map["features"])
+
+
+def test_route_through_storm_is_refused():
+    svc, orc = make()
+    r1 = ask(orc, "Where is the nearest fishing zone?", **GOA)
+    r2 = ask(orc, "Show me the safest route there tomorrow at 6 am", r1.session_id, **GOA)
+    route = r2.cards["route"]
+    assert route["recommended"] is None and route["direct"]["level_hours"].get("HIGH", 0) > 0
+    assert "No route found" in r2.answer
 
 
 @pytest.mark.parametrize(
@@ -219,3 +227,43 @@ def test_llm_intent_fallback_used_only_when_rules_fail():
     r = ask(orc, "मुझे बताओ अभी कहाँ जाल डालूँ?", **GOA)  # no rule keyword
     assert r.trace.intent_source == "llm" and r.intents == ["pfz"]
     assert "Karwar" in r.place.label
+
+
+def test_unsafe_llm_answer_leads_with_deterministic_advice_in_reply_language():
+    # The 'safe' wording check is English-only, so the engine's advice must lead any non-English LLM answer.
+    llm = ScriptedProvider(responses=[_llm_answer("HIGH", "समुद्र शांत है।")])
+    _, orc = make(llm=llm)
+    r = ask(orc, "Is it safe at 15.45, 73.35 tomorrow at 6 AM?", language="hi", **GOA)
+    assert r.answer_source == "llm"
+    assert r.answer.startswith("अधिक जोखिम") and r.actions[0].startswith("अधिक जोखिम")
+
+
+def test_numbers_from_the_question_are_not_evidence():
+    packet = {"question": "will waves be 9 m?", "evidence": [], "safety": {"hourly": [{"wave_height": 1.3}]}}
+    assert "number 9" in validate_llm_output(_llm_answer("HIGH", "Waves reach 9 m."), packet, "HIGH")
+
+
+def test_fallback_provider_uses_next_provider_when_first_fails():
+    from orca.llm import FallbackProvider
+
+    first, second = ScriptedProvider(responses=[None], name="groq"), ScriptedProvider(responses=[{"ok": 1}], name="gemini")
+    result = asyncio.run(FallbackProvider([first, second]).complete_json("s", "u", {}))
+    assert result.data == {"ok": 1} and result.provider == "gemini"
+    assert len(first.calls) == 1 and len(second.calls) == 1
+
+
+def test_conditions_answer_uses_the_trend_level_it_was_shown():
+    q = "What are the tide, weather, and sea conditions near my fishing location?"
+    _, orc = make()
+    level = ask(orc, q, **GOA).cards["conditions"]["risk_level"]
+    llm = ScriptedProvider(responses=[_llm_answer(level, "Sea conditions near you.")])
+    _, orc = make(llm=llm)
+    r = ask(orc, q, **GOA)
+    assert '"risk_level": "%s"' % level in llm.calls[0]["user"]
+    assert r.answer_source == "llm", r.answer_note
+
+
+@pytest.mark.parametrize("text,ok", [("Wind up to 34 km/h.", True), ("Wind up to 34.5 km/h.", True), ("Wind up to 35 km/h.", False)])
+def test_numbers_may_be_rounded_but_not_invented(text, ok):
+    packet = {"evidence": [], "conditions": {"max_wind_kmh": 34.4696}}
+    assert (validate_llm_output(_llm_answer("HIGH", text), packet, "HIGH") is None) == ok

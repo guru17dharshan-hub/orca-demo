@@ -233,7 +233,64 @@ export interface Conditions {
   };
 }
 
+export interface SourceStatus {
+  id: string;
+  name: string;
+  agency: string;
+  variables: string[];
+  status: "covers" | "outside" | "not_published" | "not_downloaded" | "found_on_mosdac" | "not_found" | "unchecked";
+  detail: string;
+}
+
+export interface Discovery {
+  lat: number;
+  lon: number;
+  mode: string;
+  sources: SourceStatus[];
+  gaps: string[];
+  isro: { dataset: string; product: string; granules: number; example: string | null; day: string }[];
+}
+
+export interface CompareRow {
+  tool: "harbour_safety" | "nearest_zone" | "warnings";
+  harbour: string;
+  harbour_id: string;
+  lat: number;
+  lon: number;
+  window: { start: string; end: string };
+  level?: Level;
+  factor?: { variable: string; value: number | string | null } | null;
+  go_window?: { start: string; end: string } | null;
+  zone?: { name: string; distance_km: number; compass: string } | null;
+  warnings?: { event: string; severity: string; headline: string }[];
+}
+
+export interface BoardRow {
+  harbour: string;
+  harbour_id: string;
+  state: string;
+  lat: number;
+  lon: number;
+  level: Level;
+  factor: { variable: string; value: number | string | null } | null;
+  go_window: { start: string; end: string } | null;
+  warnings: { event: string; severity: string; headline: string }[];
+}
+
+export interface HarbourBoard {
+  day: string;
+  part: string;
+  window: { start: string; end: string };
+  as_of: string;
+  rules: string;
+  counts: Record<string, number>;
+  rows: BoardRow[];
+  replay: string | null;
+}
+
 export interface Cards {
+  discovery?: Discovery;
+  compare?: { planner: "llm" | "rules"; goal: string; notes: string[]; best: string | null; rows: CompareRow[] };
   safety?: SafetyCard;
   conditions?: Conditions;
   pfz?: { candidates: PfzCandidate[]; provider: string | null; note: string | null };
@@ -315,6 +372,8 @@ export interface Health {
   scenario: { name: string; title: string; day1_starts: string };
   replay: ReplayInfo | null;
   llm: { provider: string; model: string | null; available: boolean };
+  stt?: { available: boolean; engines: string[] };
+  tts?: { available: boolean; engine: string | null };
   adapters: { name: string; mode: string; status: string; last_success: string | null; last_error: string | null; last_latency_ms: number | null }[];
   watches: number;
 }

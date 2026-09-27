@@ -6,6 +6,7 @@ import type {
   ConditionsSeries,
   FieldLayers,
   GeofenceFeature,
+  HarbourBoard,
   Health,
   PfzResponse,
   Port,
@@ -17,11 +18,22 @@ import type {
   RouteComparison,
 } from "./types";
 
+// Deployments that set ORCA_ADMIN_TOKEN gate the clock/replay controls; an operator stores the token once with
+// localStorage.setItem("orca.adminToken", "<token>") in the browser console.
+function adminHeaders(): Record<string, string> {
+  try {
+    const token = localStorage.getItem("orca.adminToken");
+    return token ? { "X-Orca-Admin-Token": token } : {};
+  } catch {
+    return {};
+  }
+}
+
 export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (STATIC_DEMO) return demoRequest<T>(path, init);
   const res = await fetch(path, {
     ...init,
-    headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
+    headers: { "Content-Type": "application/json", ...adminHeaders(), ...(init?.headers ?? {}) },
   });
   if (!res.ok) {
     let detail = `${res.status} ${res.statusText}`;
@@ -71,6 +83,21 @@ export const api = {
   advisories: () => request<{ used: string[]; errors: string[]; type: "FeatureCollection"; features: any[] }>("/api/advisories"),
 
   chat: (body: ChatBody) => request<ChatResponse>("/api/chat", post(body)),
+  board: (day: string, part: string) => request<HarbourBoard>(`/api/board?${q({ day, part })}`),
+  bulletin: (day: string, part: string, language: string) =>
+    request<{ language: string; lines: string[]; text: string; board: HarbourBoard }>(`/api/bulletin?${q({ day, part, language })}`),
+  subscribe: (body: { phone: string; channel: "sms" | "whatsapp"; harbour_id: string; language: string }) =>
+    request<{ id: string; phone: string; harbour: string; provider: string }>("/api/subscriptions", post(body)),
+  speak: async (text: string, language: string): Promise<Blob> => {
+    const res = await fetch("/api/speak", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text, language }) });
+    if (!res.ok) throw new Error(`speech ${res.status}`);
+    return res.blob();
+  },
+  transcribe: (wav: Blob, language?: string) =>
+    request<{ text: string; language: string | null; engine: string; latency_ms: number }>(
+      `/api/transcribe${language ? `?${q({ language })}` : ""}`,
+      { method: "POST", body: wav, headers: { "Content-Type": "audio/wav" } },
+    ),
   risk: (lat: number, lon: number, start: string, end: string) => request<RiskResponse>(`/api/risk?${q({ lat, lon, start, end })}`),
   conditions: (lat: number, lon: number, hours = 48) => request<ConditionsSeries>(`/api/conditions?${q({ lat, lon, hours })}`),
   pfz: (lat: number, lon: number, limit = 8) => request<PfzResponse>(`/api/pfz?${q({ lat, lon, limit })}`),

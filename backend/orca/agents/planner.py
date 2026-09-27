@@ -116,10 +116,16 @@ def build_plan(
             steps.append(step)
 
     def data_step(step_id: str, lat_lon: Callable[[dict], tuple[float, float]], s: datetime, e: datetime, deps=()) -> None:
+        async def catalog_run(r: dict) -> sp.AgentResult:
+            lat, lon = lat_lon(r)
+            return await sp.catalog_agent(svc, lat, lon, s, e)
+
         async def run(r: dict) -> sp.AgentResult:
             lat, lon = lat_lon(r)
             return await sp.discover_marine_data(svc, lat, lon, s, e)
-        add(PlanStep(step_id, "marine-data-discovery", "tool-agent", "retrieve weather, ocean and advisory data for the window", run, list(deps)))
+        add(PlanStep("catalog", "data-catalog-agent", "tool-agent", "discover which datasets cover this place and time (incl. ISRO MOSDAC search)",
+                     catalog_run, list(deps)))
+        add(PlanStep(step_id, "marine-data-agent", "tool-agent", "retrieve weather, ocean and advisory data for the window", run, [*deps, "catalog"]))
 
     here = lambda r: (place.lat, place.lon)  # noqa: E731
 

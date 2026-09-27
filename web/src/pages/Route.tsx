@@ -51,15 +51,21 @@ function LevelHours({ plan, max }: { plan: RoutePlan; max: number }) {
 }
 
 export default function Route() {
-  const { clock, place, ports, target, setTarget, geofences, staticDemo } = useApp();
-  const pfz = useApi(() => (clock && !target ? api.pfz(place.lat, place.lon, 3) : null), [place.lat, place.lon, clock, !!target]);
+  const { clock, place, ports, target, setTarget, geofences, staticDemo, events, replay } = useApp();
   const nearestPort = useMemo(() => {
     if (!ports.length) return null;
     return ports.reduce((best, p) => ((p.lat - place.lat) ** 2 + (p.lon - place.lon) ** 2 < (best.lat - place.lat) ** 2 + (best.lon - place.lon) ** 2 ? p : best));
   }, [ports, place.lat, place.lon]);
   const [portId, setPortId] = useState<string | null>(null);
   const origin = ports.find((p) => p.id === portId) ?? nearestPort;
-  const topZone = pfz.data?.candidates.find((c) => c.viable) ?? pfz.data?.candidates[0];
+  // Zones are searched from the chosen departure port, and only a reachable (viable) zone is offered: a zone on
+  // another coast is not a trip. Otherwise the user taps the chart to choose where to go.
+  const pfz = useApi(() => (clock && origin && !target ? api.pfz(origin.lat, origin.lon, 3) : null), [origin?.id, clock, !!target]);
+  const topZone = pfz.data?.candidates.find((c) => c.viable);
+  // region = [lat_min, lat_max, lon_min, lon_max] of the replay's archived data
+  const ev = events.find((e) => e.id === replay?.event);
+  const outsideReplay =
+    !!ev && !!origin && !(origin.lat >= ev.region[0] && origin.lat <= ev.region[1] && origin.lon >= ev.region[2] && origin.lon <= ev.region[3]);
   const dest = target ?? (topZone ? { lat: topZone.zone.centroid[0], lon: topZone.zone.centroid[1], label: topZone.zone.name } : null);
   const [dep, setDep] = useState<"soon" | "t06">("t06");
   const [speed, setSpeed] = useState(8);
@@ -136,7 +142,7 @@ export default function Route() {
       }
       datum={
         <span>
-          {origin ? `From ${origin.name}` : ""} {dest ? `→ ${dest.label}` : ""} · cost = travel time × (1 + risk weight) · land, restricted waters, boundary crossings and SEVERE seas are forbidden
+          {origin ? `From ${origin.name}` : ""} {dest ? `→ ${dest.label}` : ""} · cost = travel time × (1 + risk weight) · land, restricted waters, boundary crossings and HIGH or SEVERE seas are forbidden
           {target && (
             <button className="linkish" onClick={() => setTarget(null)}>
               use nearest zone instead
@@ -149,7 +155,13 @@ export default function Route() {
       {route.error && <ErrorNote error={route.error} />}
       <div className="route-grid">
         <div className="route-map">
-          <ChartMap bounds={bounds} center={[place.lat, place.lon]} label="Recommended and direct routes">
+          <ChartMap
+            bounds={bounds}
+            center={origin ? [origin.lat, origin.lon] : [place.lat, place.lon]}
+            zoom={7}
+            onClick={(lat, lon) => setTarget({ lat, lon, label: `${lat.toFixed(2)}°N ${lon.toFixed(2)}°E` })}
+            label="Recommended and direct routes. Tap the chart to choose a destination."
+          >
             {waves.data?.waves && <HeatLayer grid={waves.data.waves} values={waves.data.waves.hs} ramp={WAVE_RAMP} opacity={0.7} />}
             <GeofenceLayer features={geofences} interactive={false} />
             {fc && (
@@ -161,8 +173,10 @@ export default function Route() {
               />
             )}
             {boat && <BoatMarker lat={boat.lat} lon={boat.lon} />}
-            <PlaceMarker lat={place.lat} lon={place.lon} label={place.label} />
+            {origin && <PlaceMarker lat={origin.lat} lon={origin.lon} label={`From ${origin.name}`} />}
+            {dest && <PlaceMarker lat={dest.lat} lon={dest.lon} label={`To ${dest.label}`} />}
           </ChartMap>
+          <p className="small muted">Tap the chart to choose a destination.</p>
           <Legend title={`Wave height at departure${waves.data ? `, ${fmtIST(waves.data.valid)}` : ""}`} unit="m" ramp={WAVE_RAMP} ticks={[0, 1.25, 2.5, 4, 6]} />
           {rec && (
             <div className="scrubber">
@@ -177,7 +191,20 @@ export default function Route() {
           )}
         </div>
         <div className="route-side">
-          {!r ? (
+          {!dest && !pfz.loading ? (
+            <Panel title="Choose a destination">
+              <p>
+                No fishing zone within reach of {origin?.name ?? "this port"} in the loaded data. Tap the chart to choose where you
+                want to go.
+              </p>
+              {outsideReplay && (
+                <p className="small warn">
+                  The loaded replay, {ev!.title}, has no sea data around {origin!.name}. Load an event for this coast on the{" "}
+                  <a href="#replay">Time Machine</a> page.
+                </p>
+              )}
+            </Panel>
+          ) : !r ? (
             <Loading what="a route" />
           ) : (
             <>
@@ -198,7 +225,7 @@ export default function Route() {
                     <LevelHours plan={rec} max={maxH} />
                   </>
                 ) : (
-                  <p>No route avoids SEVERE seas, land and restricted waters in the planning window. Do not depart; wait for conditions to improve.</p>
+                  <p>No route avoids HIGH/SEVERE seas, land and restricted waters in the planning window. Do not depart; wait for conditions to improve.</p>
                 )}
               </Panel>
               <Panel title="Direct line">
